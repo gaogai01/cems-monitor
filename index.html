@@ -5,62 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尖山發電廠 CEMS 整合監控</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; padding: 20px; margin: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; padding: 10px 20px; margin: 0; }
         
-        /* 標題區塊 */
-        header { text-align: center; margin-bottom: 20px; }
-        h1 { color: #4CAF50; margin: 0; font-size: 1.8rem; letter-spacing: 1px; }
-        .sub-info { color: #aaa; font-size: 0.9rem; margin-top: 5px; }
+        /* 標題區塊 - 縮減邊距 */
+        header { text-align: center; margin-bottom: 10px; }
+        h1 { color: #4CAF50; margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
+        .sub-info { color: #aaa; font-size: 0.8rem; margin-top: 2px; }
 
-        /* --- 儀表板卡片區塊 (新增部分) --- */
+        /* --- 儀表板卡片區塊 (緊湊版) --- */
         .dashboard {
             display: flex;
             justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap; /* 手機版會自動換行 */
+            gap: 10px;
+            margin-bottom: 10px; /* 縮減與表格的距離 */
+            flex-wrap: wrap; 
         }
 
         .card {
             background-color: #1e1e1e;
-            border-radius: 8px;
-            padding: 15px;
-            flex: 1; /* 平均分配寬度 */
-            min-width: 140px;
+            border-radius: 6px;
+            padding: 8px 5px; /* 大幅減少內距 */
+            flex: 1; 
+            min-width: 120px;
             text-align: center;
             border-top: 3px solid #555;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         /* 卡片個別顏色 */
-        .card.power { border-top-color: #ffca28; } /* 發電量 - 黃色 */
-        .card.aqi { border-top-color: #00e676; }   /* AQI - 綠色 */
-        .card.temp { border-top-color: #29b6f6; }  /* 溫度 - 藍色 */
-        .card.wind { border-top-color: #ab47bc; }  /* 風速 - 紫色 */
+        .card.power { border-top-color: #ffca28; } 
+        .card.aqi { border-top-color: #00e676; }   
+        .card.temp { border-top-color: #29b6f6; }  
+        .card.wind { border-top-color: #ab47bc; }  
 
-        .card h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #bbb; text-transform: uppercase; }
-        .card .value { font-size: 1.8rem; font-weight: bold; }
-        .card .unit { font-size: 0.8rem; color: #888; }
-        .card .sub-val { font-size: 0.8rem; color: #aaa; margin-top: 5px;}
+        /* 字體與間距縮小 */
+        .card h3 { margin: 0 0 5px 0; font-size: 0.8rem; color: #bbb; text-transform: uppercase; }
+        .card .value { font-size: 1.4rem; font-weight: bold; line-height: 1.1; }
+        .card .unit { font-size: 0.7rem; color: #888; display: inline-block;}
+        .card .sub-val { font-size: 0.75rem; color: #aaa; margin-top: 2px;}
 
         /* --- 表格樣式 --- */
-        .table-container { overflow-x: auto; } /* 手機版表格可橫向滑動 */
-        table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; font-size: 0.9em; border-radius: 8px; overflow: hidden; }
-        th, td { border-bottom: 1px solid #333; padding: 10px 8px; text-align: center; }
-        th { background-color: #2c2c2c; color: #81d4fa; font-weight: 600; }
+        .table-container { overflow-x: auto; } 
+        table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; font-size: 0.85em; border-radius: 8px; overflow: hidden; }
+        th, td { border-bottom: 1px solid #333; padding: 6px 4px; text-align: center; } /* 表格內距也稍微縮小 */
+        th { background-color: #2c2c2c; color: #81d4fa; font-weight: 600; white-space: nowrap; }
         
-        /* 狀態顏色 */
         .status-run { color: #00e676; font-weight: 500; }
         .status-stop { color: #666; }
         
-        /* 機組名稱欄 */
-        td:first-child { font-weight: bold; color: #ddd; background-color: #252525; border-right: 1px solid #333; }
+        td:first-child { font-weight: bold; color: #ddd; background-color: #252525; border-right: 1px solid #333; white-space: nowrap; }
         
-        /* 平均值列 */
         .avg-row { background-color: #004d40 !important; font-weight: bold; }
         .avg-row td:first-child { background-color: #00695c; }
 
-        #loading { text-align: center; font-size: 1.2em; margin-top: 50px; color: #aaa;}
+        #loading { text-align: center; font-size: 1em; margin-top: 20px; color: #aaa;}
     </style>
 </head>
 <body>
@@ -77,9 +75,9 @@
             <div class="unit">KW</div>
         </div>
         <div class="card aqi">
-            <h3>澎湖空氣品質 (AQI)</h3>
+            <h3>澎湖 AQI</h3>
             <div class="value" id="aqiVal">--</div>
-            <div class="sub-val" id="aqiStatus">載入中...</div>
+            <div class="sub-val" id="aqiStatus">載入中</div>
         </div>
         <div class="card temp">
             <h3>湖西鄉氣溫</h3>
@@ -120,11 +118,10 @@
         // 設定你的 Google Apps Script 網址
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPLWcCJhnE_ZnnIbCgk9hNcjo6ikLDR_rzFGCiBFPamXapAj3e-fg1YiJo1THW08T4/exec';
 
-        // 設定湖西鄉尖山電廠附近座標 (用於抓取天氣)
+        // 設定湖西鄉尖山電廠附近座標
         const LAT = 23.575; 
         const LON = 119.665;
 
-        // 1. 抓取 CEMS 機組資料
         async function fetchData() {
             try {
                 const response = await fetch(GAS_URL);
@@ -139,11 +136,10 @@
             }
         }
 
-        // 2. 抓取天氣與 AQI 資料 (使用 Open-Meteo 免費 API)
         async function fetchWeather() {
             try {
-                // 同時抓取天氣與空氣品質
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m`;
+                // 修正：增加 wind_speed_unit=ms 參數，確保單位正確
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
                 const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=us_aqi`;
 
                 const [weatherRes, aqiRes] = await Promise.all([
@@ -154,44 +150,40 @@
                 const weatherData = await weatherRes.json();
                 const aqiData = await aqiRes.json();
 
-                // 更新畫面 - 溫度
+                // 更新畫面
                 document.getElementById('tempVal').innerText = weatherData.current.temperature_2m;
                 
-                // 更新畫面 - 風速與風向
+                // 風速修正後顯示
                 document.getElementById('windSpeed').innerText = weatherData.current.wind_speed_10m;
                 const windDeg = weatherData.current.wind_direction_10m;
-                document.getElementById('windDir').innerText = getWindDirection(windDeg) + ` (${windDeg}°)`;
+                document.getElementById('windDir').innerText = getWindDirection(windDeg); // 簡化顯示，拿掉括號角度以節省空間
 
-                // 更新畫面 - AQI
                 const aqi = aqiData.current.us_aqi;
                 document.getElementById('aqiVal').innerText = aqi;
                 
-                // 簡單的 AQI 狀態判斷
                 let aqiText = "良好";
                 let aqiColor = "#00e676";
                 if(aqi > 50) { aqiText = "普通"; aqiColor = "#ffeb3b"; }
-                if(aqi > 100) { aqiText = "對敏感族群不健康"; aqiColor = "#ff9800"; }
-                if(aqi > 150) { aqiText = "不健康"; aqiColor = "#f44336"; }
+                if(aqi > 100) { aqiText = "不健康"; aqiColor = "#ff9800"; }
                 
                 const aqiEl = document.getElementById('aqiStatus');
                 aqiEl.innerText = aqiText;
-                aqiEl.style.color = aqiText === "普通" ? "#ffd600" : aqiColor; // 普通時字體用深一點黃色
+                aqiEl.style.color = aqiText === "普通" ? "#ffd600" : aqiColor;
 
             } catch (error) {
                 console.error("天氣讀取失敗:", error);
             }
         }
 
-        // 輔助函式：風向角度轉文字
         function getWindDirection(degree) {
-            const directions = ['北風', '東北風', '東風', '東南風', '南風', '西南風', '西風', '西北風'];
+            const directions = ['北風', '東北', '東風', '東南', '南風', '西南', '西風', '西北'];
             return directions[Math.round(degree / 45) % 8];
         }
 
         function renderTable(timestamp, rawString) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('dataTable').style.display = 'table';
-            document.getElementById('updateTime').innerText = "最後更新: " + new Date(timestamp).toLocaleString();
+            document.getElementById('updateTime').innerText = "更新: " + new Date(timestamp).toLocaleTimeString(); // 只顯示時間比較短
 
             const dataArray = rawString.split(',');
             const tbody = document.getElementById('tableBody');
@@ -199,9 +191,8 @@
 
             const ITEMS_PER_MACHINE = 27;
             let runCount = 0;
-            // 用來計算平均與總合
             let totals = { so2: 0, nox: 0, opac: 0, temp: 0, o2: 0, vel: 0, flow: 0, load: 0, urea: 0 };
-            let totalGenLoad = 0; // 總發電量 (所有運轉機組 Load 加總)
+            let totalGenLoad = 0; 
 
             for (let i = 0; i < 12; i++) { 
                 let baseIndex = i * ITEMS_PER_MACHINE;
@@ -224,17 +215,14 @@
                     runCount++;
                     totals.so2 += so2; totals.nox += nox; totals.opac += opac; totals.temp += temp;
                     totals.o2 += o2; totals.vel += vel; totals.flow += flow; totals.load += load; totals.urea += urea;
-                    
-                    // 累加總發電量
                     totalGenLoad += load;
                 }
 
                 let row = `<tr class="${colorClass}">
-                    <td>#${i + 1} 號機</td>
-                    <td>${so2.toFixed(2)}</td>
+                    <td>#${i + 1}</td> <td>${so2.toFixed(2)}</td>
                     <td>${nox.toFixed(2)}</td>
                     <td>${opac.toFixed(2)}</td>
-                    <td>${temp.toFixed(2)}</td>
+                    <td>${temp.toFixed(1)}</td>
                     <td>${o2.toFixed(2)}</td>
                     <td>${vel.toFixed(2)}</td>
                     <td>${Math.round(flow)}</td>
@@ -244,17 +232,15 @@
                 tbody.innerHTML += row;
             }
 
-            // 更新儀表板上的總發電量
             document.getElementById('totalLoad').innerText = totalGenLoad.toLocaleString();
 
-            // 平均值列
             if (runCount > 0) {
                 let avgRow = `<tr class="avg-row">
-                    <td>平均值 (${runCount}台)</td>
+                    <td>平均</td>
                     <td>${(totals.so2 / runCount).toFixed(2)}</td>
                     <td>${(totals.nox / runCount).toFixed(2)}</td>
                     <td>${(totals.opac / runCount).toFixed(2)}</td>
-                    <td>${(totals.temp / runCount).toFixed(2)}</td>
+                    <td>${(totals.temp / runCount).toFixed(1)}</td>
                     <td>${(totals.o2 / runCount).toFixed(2)}</td>
                     <td>${(totals.vel / runCount).toFixed(2)}</td>
                     <td>${Math.round(totals.flow / runCount)}</td>
@@ -263,17 +249,14 @@
                 </tr>`;
                 tbody.innerHTML += avgRow;
             } else {
-                tbody.innerHTML += `<tr class="avg-row"><td colspan="10">目前無運轉機組</td></tr>`;
+                tbody.innerHTML += `<tr class="avg-row"><td colspan="10">無運轉機組</td></tr>`;
             }
         }
 
-        // 啟動程序
-        fetchData();      // 抓 CEMS 資料
-        fetchWeather();   // 抓 天氣 資料
-        
-        // 設定定時更新
-        setInterval(fetchData, 60000);    // CEMS 每分鐘更新
-        setInterval(fetchWeather, 300000); // 天氣 每 5 分鐘更新一次即可
+        fetchData();      
+        fetchWeather();   
+        setInterval(fetchData, 60000);    
+        setInterval(fetchWeather, 300000); 
     </script>
 </body>
 </html>

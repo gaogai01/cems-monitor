@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尖山發電廠 CEMS 遠端監控</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #1a1a1a; color: white; padding: 20px; }
+        h1 { text-align: center; color: #4CAF50; }
+        .info { text-align: center; margin-bottom: 20px; color: #aaa; }
+        
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #333; }
+        th, td { border: 1px solid #555; padding: 10px; text-align: center; }
+        th { background-color: #444; color: #81d4fa; }
+        
+        /* 數值過高警示顏色範例 */
+        .warning { color: #ff5252; font-weight: bold; }
+        
+        #loading { text-align: center; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <h1>尖山發電廠 CEMS 即時監控</h1>
+    <div class="info" id="updateTime">等待數據更新...</div>
+    <div id="loading">載入中...</div>
+
+    <table id="dataTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>機組 #</th>
+                <th>SO2 (ppm)</th>
+                <th>NOx (ppm)</th>
+                <th>OPAC (%)</th>
+                <th>TEMP (°C)</th>
+                <th>O2 (%)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+
+    <script>
+        // 設定你的 Google Apps Script 網址
+        const GAS_URL = '你的_Google_Apps_Script_網址_貼在這裡';
+
+        async function fetchData() {
+            try {
+                const response = await fetch(GAS_URL);
+                const json = await response.json();
+                
+                if (json.dataString) {
+                    renderData(json.timestamp, json.dataString);
+                }
+            } catch (error) {
+                console.error("讀取失敗:", error);
+                document.getElementById('updateTime').innerText = "連線錯誤";
+            }
+        }
+
+        function renderData(timestamp, rawString) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dataTable').style.display = 'table';
+            document.getElementById('updateTime').innerText = "最後更新時間: " + new Date(timestamp).toLocaleString();
+
+            // 解析原始字串 (根據你的截圖，資料是用逗號分隔)
+            const dataArray = rawString.split(',');
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = ""; // 清空舊資料
+
+            // --- 重要：這裡需要根據實際資料結構調整 ---
+            // 假設每台機器有一組數據，這裡只是範例邏輯
+            // 你需要觀察 Data.dat 的第幾個數字對應到 #1號機的 SO2
+            
+            // 下面是一個範例迴圈，假設前幾台機器的數據排列
+            // 註：這需要根據你的 Data.dat 實際對應位置來微調 index
+            
+            for (let i = 0; i < 12; i++) { // 假設有 12 台機組
+                let row = `<tr>
+                    <td>#${i + 1} 號機</td>
+                    <td>${dataArray[0 + (i * 10)] || '-'}</td>  <td>${dataArray[1 + (i * 10)] || '-'}</td>
+                    <td>${dataArray[2 + (i * 10)] || '-'}</td>
+                    <td>${dataArray[3 + (i * 10)] || '-'}</td>
+                    <td>${dataArray[4 + (i * 10)] || '-'}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            }
+        }
+
+        // 初次執行與設定定時更新
+        fetchData();
+        setInterval(fetchData, 60000); // 每 60 秒刷新網頁
+    </script>
+</body>
+</html>

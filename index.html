@@ -15,7 +15,7 @@
         .sub-info { color: #aaa; font-size: 0.8rem; margin-top: 2px; }
 
         /* --- 儀表板卡片 --- */
-        .dashboard { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .dashboard { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .card { background-color: #1e1e1e; border-radius: 6px; padding: 8px 5px; flex: 1; min-width: 120px; text-align: center; border-top: 3px solid #555; }
         .card.power { border-top-color: #ffca28; } 
         .card.aqi { border-top-color: #00e676; }   
@@ -26,13 +26,8 @@
         .card .unit { font-size: 0.7rem; color: #888; display: inline-block;}
         .card .sub-val { font-size: 0.75rem; color: #aaa; margin-top: 2px;}
 
-        /* --- 圖表控制區 --- */
-        .chart-controls { background-color: #1e1e1e; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid #333; }
-        .chart-controls select { background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; font-size: 0.9rem; }
-        .chart-container { position: relative; height: 300px; width: 100%; background-color: #1e1e1e; border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box;}
-
         /* --- 表格樣式 --- */
-        .table-container { overflow-x: auto; } 
+        .table-container { overflow-x: auto; margin-bottom: 30px; } /* 增加下方間距與圖表區隔 */
         table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; font-size: 0.85em; border-radius: 8px; overflow: hidden; }
         th, td { border-bottom: 1px solid #333; padding: 6px 4px; text-align: center; } 
         th { background-color: #2c2c2c; color: #81d4fa; font-weight: 600; white-space: nowrap; }
@@ -42,14 +37,22 @@
         .avg-row td:first-child { background-color: #00695c; }
 
         /* --- 狀態顏色 Class --- */
-        .col-good { color: #4fc3f7; font-weight: bold; } /* 良好 - 淺藍 (深色底較清晰) */
-        .col-warn { color: #ffea00; font-weight: bold; } /* 警告 - 亮黃 */
-        .col-limit { color: #ff1744; font-weight: bold; } /* 超限 - 亮紅 */
-        .col-normal { color: #fff; }
+        /* 重要：只有在運轉中才會套用這些顏色，停機時會被 status-stop 覆蓋 */
+        .col-good { color: #4fc3f7; font-weight: bold; } 
+        .col-warn { color: #ffea00; font-weight: bold; } 
+        .col-limit { color: #ff1744; font-weight: bold; } 
 
         /* 運轉狀態 */
-        .status-run { color: #00e676; }
-        .status-stop { color: #666; }
+        .status-run { color: #fff; } /* 運轉中預設白色 */
+        .status-stop { color: #555 !important; } /* 停機強制灰色，並加上 important 確保權重 */
+        
+        /* 針對停機列的特定欄位強制灰色 (雙保險) */
+        .status-stop td { color: #555 !important; }
+
+        /* --- 圖表控制區 --- */
+        .chart-controls { background-color: #1e1e1e; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid #333; }
+        .chart-controls select { background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; font-size: 0.9rem; }
+        .chart-container { position: relative; height: 300px; width: 100%; background-color: #1e1e1e; border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box;}
 
         #loading { text-align: center; font-size: 1em; margin-top: 20px; color: #aaa;}
     </style>
@@ -83,6 +86,28 @@
             <div class="unit">m/s</div>
             <div class="sub-val" id="windDir">--</div>
         </div>
+    </div>
+
+    <div id="loading">讀取機組數據中...</div>
+
+    <div class="table-container">
+        <table id="dataTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>機組 #</th>
+                    <th>SO2<br>(ppm)</th>
+                    <th>NOx<br>(ppm)</th>
+                    <th>OPAC<br>(%)</th>
+                    <th>TEMP<br>(°C)</th>
+                    <th>O2<br>(%)</th>
+                    <th>Vel<br>(m/s)</th>
+                    <th>Flow<br>(nm3/hr)</th>
+                    <th>Load<br>(kw)</th>
+                    <th>Urea<br>(L/hr)</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
     </div>
 
     <div class="chart-controls">
@@ -119,47 +144,24 @@
         <canvas id="historyChart"></canvas>
     </div>
 
-    <div id="loading">讀取機組數據中...</div>
-
-    <div class="table-container">
-        <table id="dataTable" style="display:none;">
-            <thead>
-                <tr>
-                    <th>機組 #</th>
-                    <th>SO2<br>(ppm)</th>
-                    <th>NOx<br>(ppm)</th>
-                    <th>OPAC<br>(%)</th>
-                    <th>TEMP<br>(°C)</th>
-                    <th>O2<br>(%)</th>
-                    <th>Vel<br>(m/s)</th>
-                    <th>Flow<br>(nm3/hr)</th>
-                    <th>Load<br>(kw)</th>
-                    <th>Urea<br>(L/hr)</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
-
     <script>
         // 設定你的 Google Apps Script 網址
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPLWcCJhnE_ZnnIbCgk9hNcjo6ikLDR_rzFGCiBFPamXapAj3e-fg1YiJo1THW08T4/exec';
+        const GAS_URL = '你的_Google_Apps_Script_網址_貼在這裡';
 
         const LAT = 23.575; 
         const LON = 119.665;
-        let chartInstance = null; // 儲存圖表物件
-        let globalHistoryData = []; // 儲存下載下來的歷史資料
+        let chartInstance = null; 
+        let globalHistoryData = []; 
 
         // --- 1. 顏色判斷邏輯 ---
         function getValueColor(val, type) {
             val = parseFloat(val);
-            if (isNaN(val)) return "col-normal";
+            if (isNaN(val)) return "";
 
-            // 根據圖片規則設定
             if (type === 'so2') {
-                if (val > 133) return "col-limit"; // 紅
-                if (val > 120) return "col-warn";  // 黃
-                if (val < 50) return "col-good";   // 藍
+                if (val > 133) return "col-limit"; 
+                if (val > 120) return "col-warn";  
+                if (val < 50) return "col-good";   
             }
             if (type === 'nox') {
                 if (val > 363) return "col-limit";
@@ -177,7 +179,7 @@
             if (type === 'urea') {
                 if (val > 200) return "col-warn";
             }
-            return "col-normal";
+            return "";
         }
 
         // --- 2. 抓取即時資料 ---
@@ -214,7 +216,9 @@
                 if (baseIndex + 26 >= dataArray.length) break;
 
                 let statusCode = dataArray[baseIndex + 2]; 
-                let colorClass = (statusCode === 'N') ? 'status-run' : 'status-stop';
+                
+                // 決定 Row 的顏色 Class
+                let rowClass = (statusCode === 'N') ? 'status-run' : 'status-stop';
 
                 // 讀取數值
                 let so2 = dataArray[baseIndex + 1];
@@ -227,15 +231,19 @@
                 let load = dataArray[baseIndex + 25];
                 let urea = dataArray[baseIndex + 26];
 
-                // 取得顏色 Class
-                let c_so2 = getValueColor(so2, 'so2');
-                let c_nox = getValueColor(nox, 'nox');
-                let c_opac = getValueColor(opac, 'opac');
-                let c_load = getValueColor(load, 'load');
-                let c_urea = getValueColor(urea, 'urea');
+                // 變色邏輯：預設為空字串
+                let c_so2="", c_nox="", c_opac="", c_load="", c_urea="";
 
-                // 計算平均與總和
+                // **關鍵修正**：只有當運轉中 (N) 時，才去計算顏色
+                // 停機時 (F)，這些變數保持為空，這樣就會繼承 status-stop 的灰色
                 if (statusCode === 'N') {
+                    c_so2 = getValueColor(so2, 'so2');
+                    c_nox = getValueColor(nox, 'nox');
+                    c_opac = getValueColor(opac, 'opac');
+                    c_load = getValueColor(load, 'load');
+                    c_urea = getValueColor(urea, 'urea');
+
+                    // 計算平均
                     runCount++;
                     totals.so2 += parseFloat(so2)||0; totals.nox += parseFloat(nox)||0; 
                     totals.opac += parseFloat(opac)||0; totals.temp += parseFloat(temp)||0;
@@ -245,7 +253,7 @@
                     totalGenLoad += parseFloat(load)||0;
                 }
 
-                let row = `<tr class="${colorClass}">
+                let row = `<tr class="${rowClass}">
                     <td>#${i + 1}</td>
                     <td class="${c_so2}">${parseFloat(so2).toFixed(2)}</td>
                     <td class="${c_nox}">${parseFloat(nox).toFixed(2)}</td>
@@ -284,13 +292,12 @@
         // --- 3. 抓取歷史資料並畫圖 ---
         async function fetchHistoryData() {
             try {
-                // 加上 ?type=history 參數呼叫
                 const response = await fetch(GAS_URL + "?type=history");
                 const json = await response.json();
                 
                 if (Array.isArray(json)) {
                     globalHistoryData = json;
-                    updateChartFromHistory(); // 資料抓到後直接畫圖
+                    updateChartFromHistory(); 
                 }
             } catch (error) {
                 console.error("歷史資料讀取失敗:", error);
@@ -304,7 +311,6 @@
             const pollutant = document.getElementById('chartPollutant').value;
             const range = document.getElementById('chartRange').value;
 
-            // 計算索引 Offset
             const ITEMS_PER_MACHINE = 27;
             const baseIndex = (machineId - 1) * ITEMS_PER_MACHINE;
             let offset = 0;
@@ -316,12 +322,10 @@
             else if (pollutant === 'load') { offset = 25; labelName = `Load (kw)`; }
             else if (pollutant === 'urea') { offset = 26; labelName = `Urea (L/hr)`; }
 
-            // 準備數據點
             const chartData = [];
             const now = new Date();
             const cutoffTime = new Date();
             
-            // 設定時間範圍
             if (range === '24h') cutoffTime.setHours(now.getHours() - 24);
             if (range === '30d') cutoffTime.setDate(now.getDate() - 30);
 
@@ -343,7 +347,7 @@
             const ctx = document.getElementById('historyChart').getContext('2d');
             
             if (chartInstance) {
-                chartInstance.destroy(); // 銷毀舊圖表
+                chartInstance.destroy(); 
             }
 
             chartInstance = new Chart(ctx, {
@@ -357,7 +361,7 @@
                         borderWidth: 2,
                         pointRadius: 2,
                         fill: true,
-                        tension: 0.3 // 曲線平滑度
+                        tension: 0.3 
                     }]
                 },
                 options: {
@@ -384,7 +388,7 @@
             });
         }
 
-        // --- 4. 天氣功能 (保持不變) ---
+        // --- 4. 天氣功能 ---
         async function fetchWeather() {
             try {
                 const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
@@ -417,10 +421,10 @@
 
         // --- 啟動 ---
         fetchRealtimeData();
-        fetchHistoryData(); // 新增：抓取歷史資料畫圖
+        fetchHistoryData(); 
         fetchWeather();
-        setInterval(fetchRealtimeData, 60000); // 1分鐘更新即時表格
-        setInterval(fetchHistoryData, 300000); // 5分鐘更新歷史圖表
+        setInterval(fetchRealtimeData, 60000); 
+        setInterval(fetchHistoryData, 300000); 
         setInterval(fetchWeather, 300000); 
     </script>
 </body>

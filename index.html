@@ -272,4 +272,235 @@
             }
 
             currentTotalLoadVal = totalGenLoad; // 更新全域變數供比較用
-            document.getElementById('totalLoad').innerText = totalGenLoad
+            document.getElementById('totalLoad').innerText = totalGenLoad.toLocaleString();
+
+            if (runCount > 0) {
+                let avgRow = `<tr class="avg-row">
+                    <td>平均</td>
+                    <td>${(totals.so2 / runCount).toFixed(2)}</td>
+                    <td>${(totals.nox / runCount).toFixed(2)}</td>
+                    <td>${(totals.opac / runCount).toFixed(2)}</td>
+                    <td>${(totals.temp / runCount).toFixed(1)}</td>
+                    <td>${(totals.o2 / runCount).toFixed(2)}</td>
+                    <td>${(totals.vel / runCount).toFixed(2)}</td>
+                    <td>${Math.round(totals.flow / runCount)}</td>
+                    <td>${Math.round(totals.load / runCount)}</td>
+                    <td>${Math.round(totals.urea / runCount)}</td>
+                    <td>${Math.round(totals.ureaKLD / runCount)}</td>
+                </tr>`;
+                tbody.innerHTML += avgRow;
+            } else {
+                tbody.innerHTML += `<tr class="avg-row"><td colspan="11">無運轉機組</td></tr>`;
+            }
+        }
+
+        async function fetchHistoryData() {
+            try {
+                const response = await fetch(GAS_URL + "?type=history");
+                const json = await response.json();
+                
+                if (Array.isArray(json)) {
+                    globalHistoryData = json;
+                    updateChartFromHistory(); 
+                    calculateLoadComparison(); // 資料下載完後計算比較
+                }
+            } catch (error) {
+                console.error("歷史資料讀取失敗:", error);
+                document.getElementById('loadDiff').innerText = "無法取得歷史資料";
+            }
+        }
+
+        // --- 新增：計算與昨日發電量比較 ---
+        function calculateLoadComparison() {
+            if (globalHistoryData.length === 0 || currentTotalLoadVal === 0) return;
+
+            const now = new Date();
+            // 目標時間：現在時間 - 24 小時
+            const targetTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            // 在歷史資料中尋找最接近 24 小時前的那一筆
+            // 容許誤差 30 分鐘
+            let closestRecord = null;
+            let minDiff = Infinity;
+
+            for (let row of globalHistoryData) {
+                let rowTime = new Date(row.t);
+                let diff = Math.abs(rowTime - targetTime);
+                
+                // 如果差異小於 30 分鐘 (1800000 ms) 且是目前找到最小的
+                if (diff < 1800000 && diff < minDiff) {
+                    minDiff = diff;
+                    closestRecord = row;
+                }
+            }
+
+            const diffEl = document.getElementById('loadDiff');
+
+            if (closestRecord) {
+                // 解析那一筆舊資料，算出當時的總 Load
+                let oldLoad = 0;
+                const dataParts = closestRecord.d.split(',');
+                const ITEMS_PER_MACHINE = 27;
+
+                for (let i = 0; i < 12; i++) {
+                    let base = i * ITEMS_PER_MACHINE;
+                    if (base + 26 < dataParts.length) {
+                        let status = dataParts[base + 2];
+                        let load = parseFloat(dataParts[base + 25]) || 0;
+                        if (status === 'N') {
+                            oldLoad += load;
+                        }
+                    }
+                }
+
+                // 計算差異百分比
+                let diffPercent = 0;
+                let diffClass = "diff-flat";
+                let icon = "-";
+
+                if (oldLoad > 0) {
+                    diffPercent = ((currentTotalLoadVal - oldLoad) / oldLoad) * 100;
+                    if (diffPercent > 0) {
+                        diffClass = "diff-up"; // 增加 (用紅色表示負載變高，或者你想用綠色表示業務成長，這邊假設增加用紅)
+                        icon = "▲";
+                    } else if (diffPercent < 0) {
+                        diffClass = "diff-down"; // 減少
+                        icon = "▼";
+                    }
+                } else {
+                     // 昨天如果是 0，無法計算百分比
+                     diffEl.innerText = `昨日同期: 0 KW`;
+                     return;
+                }
+                
+                // 顯示結果
+                diffEl.innerHTML = `<span style="color:#aaa">昨日: ${oldLoad.toLocaleString()}</span> <span class="${diffClass}">${icon} ${Math.abs(diffPercent).toFixed(1)}%</span>`;
+
+            } else {
+                diffEl.innerText = "無昨日同期數據";
+            }
+        }
+
+        function updateChartFromHistory() {
+            if (globalHistoryData.length === 0) return;
+
+            const machineId = parseInt(document.getElementById('chartMachine').value);
+            const pollutant = document.getElementById('chartPollutant').value;
+            const range = document.getElementById('chartRange').value;
+
+            const ITEMS_PER_MACHINE = 27;
+            const baseIndex = (machineId - 1) * ITEMS_PER_MACHINE;
+            let offset = 0;
+            let labelName = "";
+
+            if (pollutant === 'so2') { offset = 1; labelName = `SO2 (ppm)`; }
+            else if (pollutant === 'nox') { offset = 6; labelName = `NOx (ppm)`; }
+            else if (pollutant === 'opac') { offset = 10; labelName = `OPAC (%)`; }
+            else if (pollutant === 'load') { offset = 25; labelName = `Load (kw)`; }
+            else if (pollutant === 'urea') { offset = 26; labelName = `Urea (L/hr)`; }
+
+            const chartData = [];
+            const now = new Date();
+            const cutoffTime = new Date();
+            
+            if (range === '24h') cutoffTime.setHours(now.getHours() - 24);
+            if (range === '30d') cutoffTime.setDate(now.getDate() - 30);
+
+            globalHistoryData.forEach(row => {
+                const time = new Date(row.t);
+                if (time >= cutoffTime) {
+                    const parts = row.d.split(',');
+                    const val = parts[baseIndex + offset];
+                    if (val !== undefined) {
+                        chartData.push({ x: time, y: parseFloat(val) || 0 });
+                    }
+                }
+            });
+
+            drawChart(labelName, chartData);
+        }
+
+        function drawChart(label, dataPoints) {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy(); 
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: label,
+                        data: dataPoints,
+                        borderColor: '#00e676',
+                        backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        fill: true,
+                        tension: 0.3 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'hour', tooltipFormat: 'yyyy-MM-dd HH:mm' },
+                            grid: { color: '#333' },
+                            ticks: { color: '#aaa' }
+                        },
+                        y: {
+                            grid: { color: '#333' },
+                            ticks: { color: '#aaa' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: 'white' } },
+                        tooltip: { backgroundColor: '#333', titleColor: '#fff', bodyColor: '#fff' }
+                    }
+                }
+            });
+        }
+
+        async function fetchWeather() {
+            try {
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
+                const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=us_aqi`;
+                const [weatherRes, aqiRes] = await Promise.all([fetch(weatherUrl), fetch(aqiUrl)]);
+                const weatherData = await weatherRes.json();
+                const aqiData = await aqiRes.json();
+
+                document.getElementById('tempVal').innerText = weatherData.current.temperature_2m;
+                document.getElementById('windSpeed').innerText = weatherData.current.wind_speed_10m;
+                const windDeg = weatherData.current.wind_direction_10m;
+                document.getElementById('windDir').innerText = getWindDirection(windDeg);
+                const aqi = aqiData.current.us_aqi;
+                document.getElementById('aqiVal').innerText = aqi;
+                
+                let aqiText = "良好";
+                let aqiColor = "#00e676";
+                if(aqi > 50) { aqiText = "普通"; aqiColor = "#ffeb3b"; }
+                if(aqi > 100) { aqiText = "不健康"; aqiColor = "#ff9800"; }
+                const aqiEl = document.getElementById('aqiStatus');
+                aqiEl.innerText = aqiText;
+                aqiEl.style.color = aqiText === "普通" ? "#ffd600" : aqiColor;
+
+            } catch (error) { console.error("天氣讀取失敗:", error); }
+        }
+        function getWindDirection(degree) {
+            const directions = ['北風', '東北', '東風', '東南', '南風', '西南', '西風', '西北'];
+            return directions[Math.round(degree / 45) % 8];
+        }
+
+        fetchRealtimeData();
+        fetchHistoryData(); 
+        fetchWeather();
+        setInterval(fetchRealtimeData, 60000); 
+        setInterval(fetchHistoryData, 300000); 
+        setInterval(fetchWeather, 300000); 
+    </script>
+</body>
+</html>

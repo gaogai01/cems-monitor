@@ -3,114 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>怪獸電力公司最新報價</title>
+    <title>尖山發電廠 CEMS 戰情儀表板</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; padding: 10px 20px; margin: 0; }
+        /* --- CSS 變數系統 --- */
+        :root {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --bg-header: #2c2c2c;
+            --bg-table-head: #2c2c2c;
+            --bg-table-row: #1e1e1e;
+            --bg-table-row-hover: #2a2a2a;
+            --text-main: #ffffff;
+            --text-sub: #aaaaaa;
+            --text-muted: #888888;
+            --border-color: #333333;
+            
+            /* 儀表板底色 (四色色塊版) */
+            --gauge-track: linear-gradient(90deg, 
+                #29b6f6 0%, #29b6f6 25%, 
+                #00e676 25%, #00e676 60%, 
+                #ffea00 60%, #ffea00 80%, 
+                #ff1744 80%, #ff1744 100%);
+            
+            --marker-color: #ffffff; 
+            --text-running: #00e676; 
+        }
+
+        body.light-mode {
+            --bg-body: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-header: #e4e6eb;
+            --bg-table-head: #dfe1e5;
+            --bg-table-row: #ffffff;
+            --bg-table-row-hover: #f5f5f5;
+            --text-main: #1c1e21;
+            --text-sub: #65676b;
+            --text-muted: #888888;
+            --border-color: #cccccc;
+            --marker-color: #333333; 
+            --text-running: #2e7d32; 
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-body); color: var(--text-main); padding: 10px 20px; margin: 0; transition: background-color 0.3s, color 0.3s; }
         
-        header { text-align: center; margin-bottom: 10px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 10px; }
+        .header-title { text-align: center; flex-grow: 1; }
         h1 { color: #4CAF50; margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
-        .sub-info { color: #aaa; font-size: 0.8rem; margin-top: 2px; }
+        .sub-info { color: var(--text-sub); font-size: 0.8rem; margin-top: 2px; }
+
+        .theme-toggle {
+            background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);
+            padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .theme-toggle:hover { background-color: var(--border-color); }
 
         /* --- 儀表板卡片 --- */
         .dashboard { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-        .card { background-color: #1e1e1e; border-radius: 6px; padding: 8px 5px; flex: 1; min-width: 130px; text-align: center; border-top: 3px solid #555; position: relative;}
+        .card { 
+            background-color: var(--bg-card); 
+            border-radius: 8px; padding: 10px; flex: 1; min-width: 140px; text-align: center; 
+            border-top: 3px solid #555; position: relative; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
         
-        /* 卡片顏色定義 */
-        .card.power { border-top-color: #ffca28; }  /* 黃 */
-        .card.units { border-top-color: #ff5722; }  /* 橘 (新) */
-        .card.urea  { border-top-color: #3f51b5; }  /* 靛 (新) */
-        .card.aqi   { border-top-color: #00e676; }  /* 綠 */
-        .card.temp  { border-top-color: #29b6f6; }  /* 藍 */
-        .card.wind  { border-top-color: #ab47bc; }  /* 紫 */
+        .card.power { border-top-color: #ffca28; } 
+        .card.units { border-top-color: #ff5722; } 
+        .card.urea  { border-top-color: #3f51b5; } 
+        .card.aqi   { border-top-color: #00e676; } 
+        .card.temp  { border-top-color: #29b6f6; } 
+        .card.wind  { border-top-color: #ab47bc; } 
         
-        .card h3 { margin: 0 0 5px 0; font-size: 0.8rem; color: #bbb; text-transform: uppercase; }
-        .card .value { font-size: 1.4rem; font-weight: bold; line-height: 1.1; }
-        .card .unit { font-size: 0.7rem; color: #888; display: inline-block;}
-        .card .sub-val { font-size: 0.75rem; color: #aaa; margin-top: 5px;}
+        .card h3 { margin: 0 0 5px 0; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .data-row { display: flex; justify-content: center; align-items: baseline; gap: 4px; margin-bottom: 5px; }
+        .card .value { font-size: 1.6rem; font-weight: bold; line-height: 1; color: var(--text-main); }
+        .card .unit { font-size: 0.85rem; color: var(--text-muted); font-weight: normal; }
+        .card .sub-val { font-size: 0.75rem; color: var(--text-sub); margin-top: 5px; min-height: 1.2em;}
 
-        /* 發電量比較樣式 */
+        /* --- 線性儀表板 (Slider Style) --- */
+        .gauge-container { position: relative; width: 100%; height: 20px; margin-top: 5px; display: flex; align-items: center; }
+        .gauge-bar { width: 100%; height: 8px; border-radius: 2px; background: var(--gauge-track); }
+        
+        .gauge-marker {
+            position: absolute; top: 2px; height: 16px; width: 4px;
+            background-color: var(--marker-color); border: 1px solid #888; border-radius: 2px;
+            transform: translateX(-50%); transition: left 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+            left: 0%; box-shadow: 0 0 4px rgba(0,0,0,0.5); z-index: 2;
+        }
+
         .diff-up { color: #ff1744; font-weight: bold; } 
         .diff-down { color: #00e676; font-weight: bold; } 
-        .diff-flat { color: #aaa; }
+        .diff-flat { color: var(--text-sub); }
 
         /* --- 表格樣式 --- */
-        .table-container { overflow-x: auto; margin-bottom: 30px; } 
-        table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; font-size: 0.85em; border-radius: 8px; overflow: hidden; }
-        th, td { border-bottom: 1px solid #333; padding: 6px 4px; text-align: center; } 
-        th { background-color: #2c2c2c; color: #81d4fa; font-weight: 600; white-space: nowrap; }
+        .table-container { overflow-x: auto; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } 
+        table { width: 100%; border-collapse: collapse; background-color: var(--bg-card); font-size: 0.85em; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 8px 6px; text-align: center; color: var(--text-main); } 
+        th { background-color: var(--bg-table-head); color: #81d4fa; font-weight: 600; white-space: nowrap; }
+        body.light-mode th { color: #0277bd; }
+        tbody tr:hover { background-color: var(--bg-table-row-hover); }
+        td:first-child { font-weight: bold; color: var(--text-main); background-color: var(--bg-table-head); border-right: 1px solid var(--border-color); white-space: nowrap; }
         
-        td:first-child { font-weight: bold; color: #ddd; background-color: #252525; border-right: 1px solid #333; white-space: nowrap; }
         .avg-row { background-color: #004d40 !important; font-weight: bold; }
-        .avg-row td:first-child { background-color: #00695c; }
+        .avg-row td { color: #fff !important; }
+        .avg-row td:first-child { background-color: #00695c; color: #fff !important;}
 
         /* --- 狀態顏色 Class --- */
-        /* 修改：良好改成綠色粗體 */
-        .col-good { color: #00e676 !important; font-weight: bold; } 
+        .col-good { color: #29b6f6 !important; font-weight: bold; } 
+        body.light-mode .col-good { color: #0288d1 !important; } 
+
         .col-warn { color: #ffea00 !important; font-weight: bold; } 
+        body.light-mode .col-warn { color: #f57f17 !important; }
+
         .col-limit { color: #ff1744 !important; font-weight: bold; } 
 
-        /* 運轉狀態 - 綠色 */
-        .status-run { color: #00e676; } 
-        /* 停機 - 強制灰色 */
-        .status-stop { color: #555 !important; } 
-        .status-stop td { color: #555 !important; }
+        /* 運轉中 (Green) */
+        .status-run td { color: var(--text-running); }
+        
+        /* 停機 (Gray) */
+        .status-stop { color: var(--text-muted) !important; } 
+        .status-stop td { color: var(--text-muted) !important; }
 
         /* --- 圖表控制區 --- */
-        .chart-controls { background-color: #1e1e1e; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid #333; }
-        .chart-controls select { background-color: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; font-size: 0.9rem; }
-        .chart-container { position: relative; height: 300px; width: 100%; background-color: #1e1e1e; border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box;}
+        .chart-controls { 
+            background-color: var(--bg-card); padding: 10px; border-radius: 8px; margin-bottom: 10px; 
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border-color); 
+        }
+        .chart-controls label { color: var(--text-main); }
+        
+        /* Input & Select 樣式統一 */
+        .chart-controls select, .chart-controls input[type="date"] { 
+            background-color: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color); 
+            padding: 5px 10px; border-radius: 4px; font-size: 0.9rem; 
+        }
+        /* 針對日曆 icon 的暗黑模式修正 */
+        .chart-controls input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        body.light-mode .chart-controls input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0);
+        }
 
-        #loading { text-align: center; font-size: 1em; margin-top: 20px; color: #aaa;}
+        .chart-container { position: relative; height: 300px; width: 100%; background-color: var(--bg-card); border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
+        #loading { text-align: center; font-size: 1em; margin-top: 20px; color: var(--text-sub);}
     </style>
 </head>
 <body>
 
     <header>
-        <h1>怪獸電力公司最新報價</h1>
-        <div class="sub-info" id="updateTime">連線中...</div>
+        <div style="width: 80px;"></div>
+        <div class="header-title">
+            <h1>尖山發電廠 CEMS 監控畫面</h1>
+            <div class="sub-info" id="updateTime">連線中...</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="themeIcon">☀️ 亮色</span>
+        </button>
     </header>
 
     <div class="dashboard">
         <div class="card power">
             <h3>目前總發電量</h3>
-            <div class="value" id="totalLoad">0</div>
-            <div class="unit">KW</div>
+            <div class="data-row"><span class="value" id="totalLoad">0</span><span class="unit">KW</span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-power"></div></div>
             <div class="sub-val" id="loadDiff">讀取中...</div>
         </div>
-
         <div class="card units">
             <h3>運轉機組數</h3>
-            <div class="value" id="runningCountVal">0</div>
-            <div class="unit">台</div>
+            <div class="data-row"><span class="value" id="runningCountVal">0</span><span class="unit">台</span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-units"></div></div>
             <div class="sub-val" id="boilerCountVal">含鍋爐: 0</div>
         </div>
-
         <div class="card urea">
             <h3>總尿素用量</h3>
-            <div class="value" id="totalUreaVal">0.0</div>
-            <div class="unit">kL/日</div>
+            <div class="data-row"><span class="value" id="totalUreaVal">0.0</span><span class="unit">kL/日</span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-urea"></div></div>
             <div class="sub-val">全廠合計</div>
         </div>
-
         <div class="card aqi">
             <h3>澎湖 AQI</h3>
-            <div class="value" id="aqiVal">--</div>
+            <div class="data-row"><span class="value" id="aqiVal">--</span><span class="unit"></span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-aqi"></div></div>
             <div class="sub-val" id="aqiStatus">載入中</div>
         </div>
-
         <div class="card temp">
             <h3>湖西鄉氣溫</h3>
-            <div class="value" id="tempVal">--</div>
-            <div class="unit">°C</div>
+            <div class="data-row"><span class="value" id="tempVal">--</span><span class="unit">°C</span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-temp"></div></div>
+            <div class="sub-val">即時氣溫</div>
         </div>
-
         <div class="card wind">
             <h3>環境風速 / 風向</h3>
-            <div class="value" id="windSpeed">--</div>
-            <div class="unit">m/s</div>
+            <div class="data-row"><span class="value" id="windSpeed">--</span><span class="unit">m/s</span></div>
+            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-wind"></div></div>
             <div class="sub-val" id="windDir">--</div>
         </div>
     </div>
@@ -131,7 +221,7 @@
                     <th>Flow<br>(nm3/hr)</th>
                     <th>Load<br>(kw)</th>
                     <th>Urea<br>(L/hr)</th>
-                    </tr>
+                </tr>
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
@@ -162,8 +252,11 @@
         </select>
         <select id="chartRange">
             <option value="24h">每日 (24H)</option>
-            <option value="30d">每月 (30D)</option>
+            <option value="7d">每週 (7D)</option> <option value="30d">每月 (30D)</option>
         </select>
+        <label>結束日期：</label>
+        <input type="date" id="chartDate" title="選擇結束日期，留空則為今天">
+        
         <button onclick="updateChartFromHistory()" style="padding: 5px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">更新圖表</button>
     </div>
 
@@ -172,41 +265,57 @@
     </div>
 
     <script>
+        const THRESHOLDS = {
+            so2:  { warn: 120, limit: 133, max: 200 },
+            nox:  { warn: 327, limit: 363, max: 400 },
+            opac: { warn: 8,   limit: 40,  max: 50 },
+            load: { warn: 8000, limit: 9000, max: 11000 },
+            urea: { warn: 200, limit: 360, max: 400 },
+            
+            powerCard: { warn: 100000, limit: 110000, max: 120000 },
+            unitsCard: { warn: 10, limit: 9, max: 12 },
+            ureaCard:  { warn: 40, limit: 45, max: 50 },
+            aqiCard:   { warn: 100, limit: 150, max: 200 },
+            tempCard:  { warn: 28, limit: 32, max: 36 },
+            windCard:  { warn: 19, limit: 22, max: 25 }
+        };
+
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPLWcCJhnE_ZnnIbCgk9hNcjo6ikLDR_rzFGCiBFPamXapAj3e-fg1YiJo1THW08T4/exec';
         const LAT = 23.575; 
         const LON = 119.665;
+        
         let chartInstance = null; 
         let globalHistoryData = []; 
         let currentTotalLoadVal = 0; 
-        
-        // 定義有鍋爐的機組 (注意：陣列是 0-base，所以要用機組號碼-1，或者直接比對機組號碼)
         const BOILER_UNITS = [1, 2, 3, 4, 5, 7, 9, 11]; 
+
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('light-mode');
+            const isLight = body.classList.contains('light-mode');
+            document.getElementById('themeIcon').innerText = isLight ? "🌙 暗色" : "☀️ 亮色";
+            if (chartInstance) updateChartTheme(isLight);
+        }
+
+        function updateGauge(markerId, val, max) {
+            let percentage = (val / max) * 100;
+            if (percentage > 100) percentage = 100;
+            if (percentage < 0) percentage = 0;
+            document.getElementById(markerId).style.left = percentage + "%";
+        }
 
         function getValueColor(val, type) {
             val = parseFloat(val);
             if (isNaN(val)) return "";
+            if (!THRESHOLDS[type]) return ""; 
 
-            if (type === 'so2') {
-                if (val > 133) return "col-limit"; 
-                if (val > 120) return "col-warn";  
-                if (val < 50) return "col-good";   
-            }
-            if (type === 'nox') {
-                if (val > 363) return "col-limit";
-                if (val > 327) return "col-warn";
-                if (val < 247) return "col-good";
-            }
-            if (type === 'opac') {
-                if (val > 40) return "col-limit";
-                if (val > 8) return "col-warn";
-                if (val < 4) return "col-good";
-            }
-            if (type === 'load') {
-                if (val > 8000) return "col-warn";
-            }
-            if (type === 'urea') {
-                if (val > 200) return "col-warn";
-            }
+            if (val > THRESHOLDS[type].limit) return "col-limit"; 
+            if (val > THRESHOLDS[type].warn) return "col-warn";   
+            
+            if (type === 'so2' && val < 50) return "col-good"; 
+            if (type === 'nox' && val < 247) return "col-good"; 
+            if (type === 'opac' && val < 4) return "col-good"; 
+
             return "";
         }
 
@@ -214,7 +323,6 @@
             try {
                 const response = await fetch(GAS_URL);
                 const json = await response.json();
-                
                 if (json.dataString) {
                     renderTable(json.timestamp, json.dataString);
                     calculateLoadComparison();
@@ -235,16 +343,15 @@
             tbody.innerHTML = ""; 
 
             const ITEMS_PER_MACHINE = 27;
-            let runCount = 0; // 運轉總數
-            let boilerRunCount = 0; // 有鍋爐的運轉數
+            let runCount = 0; 
+            let boilerRunCount = 0; 
             let totalGenLoad = 0;
-            let totalUreaKLD = 0; // 全廠尿素日用量總和
+            let totalUreaKLD = 0; 
 
-            // 統計用變數
             let totals = { so2: 0, nox: 0, opac: 0, temp: 0, o2: 0, vel: 0, flow: 0, load: 0, urea: 0 };
 
             for (let i = 0; i < 12; i++) { 
-                let machineId = i + 1; // 機組編號
+                let machineId = i + 1; 
                 let baseIndex = i * ITEMS_PER_MACHINE;
                 if (baseIndex + 26 >= dataArray.length) break;
 
@@ -264,19 +371,14 @@
                 let c_so2="", c_nox="", c_opac="", c_load="", c_urea="";
 
                 if (statusCode === 'N') {
-                    // 1. 顏色判斷
                     c_so2 = getValueColor(so2, 'so2');
                     c_nox = getValueColor(nox, 'nox');
                     c_opac = getValueColor(opac, 'opac');
                     c_load = getValueColor(load, 'load');
                     c_urea = getValueColor(urea, 'urea');
 
-                    // 2. 數據累加
                     runCount++;
-                    // 檢查是否為鍋爐機組
-                    if (BOILER_UNITS.includes(machineId)) {
-                        boilerRunCount++;
-                    }
+                    if (BOILER_UNITS.includes(machineId)) boilerRunCount++;
 
                     totals.so2 += parseFloat(so2)||0; totals.nox += parseFloat(nox)||0; 
                     totals.opac += parseFloat(opac)||0; totals.temp += parseFloat(temp)||0;
@@ -285,8 +387,6 @@
                     totals.urea += parseFloat(urea)||0;
                     
                     totalGenLoad += parseFloat(load)||0;
-
-                    // 3. 計算尿素 kL/日 (L/hr * 24 / 1000) 並累加到全廠總量
                     let singleUreaKLD = (parseFloat(urea)||0) * 24 / 1000;
                     totalUreaKLD += singleUreaKLD;
                 }
@@ -306,18 +406,17 @@
                 tbody.innerHTML += row;
             }
 
-            // --- 更新儀表板數據 ---
             currentTotalLoadVal = totalGenLoad; 
             document.getElementById('totalLoad').innerText = totalGenLoad.toLocaleString();
+            updateGauge('marker-power', totalGenLoad, THRESHOLDS.powerCard.max); 
             
-            // 更新運轉機組數
             document.getElementById('runningCountVal').innerText = runCount;
             document.getElementById('boilerCountVal').innerText = `含鍋爐: ${boilerRunCount}`;
+            updateGauge('marker-units', runCount, THRESHOLDS.unitsCard.max); 
 
-            // 更新總尿素用量
             document.getElementById('totalUreaVal').innerText = totalUreaKLD.toFixed(1);
+            updateGauge('marker-urea', totalUreaKLD, THRESHOLDS.ureaCard.max); 
 
-            // --- 表格平均值列 ---
             if (runCount > 0) {
                 let avgRow = `<tr class="avg-row">
                     <td>平均</td>
@@ -341,7 +440,6 @@
             try {
                 const response = await fetch(GAS_URL + "?type=history");
                 const json = await response.json();
-                
                 if (Array.isArray(json)) {
                     globalHistoryData = json;
                     updateChartFromHistory(); 
@@ -349,7 +447,6 @@
                 }
             } catch (error) {
                 console.error("歷史資料讀取失敗:", error);
-                document.getElementById('loadDiff').innerText = "歷史資料異常";
             }
         }
 
@@ -385,13 +482,12 @@
                 let diffPercent = 0;
                 let diffClass = "diff-flat";
                 let icon = "-";
-
                 if (oldLoad > 0) {
                     diffPercent = ((currentTotalLoadVal - oldLoad) / oldLoad) * 100;
                     if (diffPercent > 0) { diffClass = "diff-up"; icon = "▲"; } 
                     else if (diffPercent < 0) { diffClass = "diff-down"; icon = "▼"; }
                 }
-                diffEl.innerHTML = `<span style="color:#aaa">昨日: ${oldLoad.toLocaleString()}</span> <span class="${diffClass}">${icon} ${Math.abs(diffPercent).toFixed(1)}%</span>`;
+                diffEl.innerHTML = `<span style="color:var(--text-sub)">昨日: ${oldLoad.toLocaleString()}</span> <span class="${diffClass}">${icon} ${Math.abs(diffPercent).toFixed(1)}%</span>`;
             } else {
                 diffEl.innerText = "無昨日數據";
             }
@@ -399,9 +495,12 @@
 
         function updateChartFromHistory() {
             if (globalHistoryData.length === 0) return;
+            
             const machineId = parseInt(document.getElementById('chartMachine').value);
             const pollutant = document.getElementById('chartPollutant').value;
             const range = document.getElementById('chartRange').value;
+            const dateInput = document.getElementById('chartDate').value;
+            
             const ITEMS_PER_MACHINE = 27;
             const baseIndex = (machineId - 1) * ITEMS_PER_MACHINE;
             let offset = 0;
@@ -413,56 +512,128 @@
             else if (pollutant === 'load') { offset = 25; labelName = `Load (kw)`; }
             else if (pollutant === 'urea') { offset = 26; labelName = `Urea (L/hr)`; }
 
+            const threshold = THRESHOLDS[pollutant];
+            const warnVal = threshold ? threshold.warn : null;
+            const limitVal = threshold ? threshold.limit : null;
+
             const chartData = [];
-            const now = new Date();
-            const cutoffTime = new Date();
-            if (range === '24h') cutoffTime.setHours(now.getHours() - 24);
-            if (range === '30d') cutoffTime.setDate(now.getDate() - 30);
+            const warnData = [];
+            const limitData = [];
+
+            // 日期計算邏輯
+            let endTime;
+            if (dateInput) {
+                // 如果有選日期，結束時間設為該日期的 23:59:59
+                endTime = new Date(dateInput);
+                endTime.setHours(23, 59, 59, 999);
+            } else {
+                // 沒選日期，結束時間設為現在
+                endTime = new Date();
+            }
+
+            const startTime = new Date(endTime);
+            if (range === '24h') startTime.setTime(endTime.getTime() - 24 * 60 * 60 * 1000);
+            if (range === '7d') startTime.setDate(endTime.getDate() - 7);
+            if (range === '30d') startTime.setDate(endTime.getDate() - 30);
 
             globalHistoryData.forEach(row => {
                 const time = new Date(row.t);
-                if (time >= cutoffTime) {
+                // 篩選時間範圍 (包含自訂日期的範圍)
+                if (time >= startTime && time <= endTime) {
                     const parts = row.d.split(',');
                     const val = parts[baseIndex + offset];
                     if (val !== undefined) {
-                        chartData.push({ x: time, y: parseFloat(val) || 0 });
+                        const numVal = parseFloat(val) || 0;
+                        chartData.push({ x: time, y: numVal });
+                        if(warnVal) warnData.push({ x: time, y: warnVal });
+                        if(limitVal) limitData.push({ x: time, y: limitVal });
                     }
                 }
             });
-            drawChart(labelName, chartData);
+            drawChart(labelName, chartData, warnData, limitData);
         }
 
-        function drawChart(label, dataPoints) {
+        function drawChart(label, dataPoints, warnPoints, limitPoints) {
             const ctx = document.getElementById('historyChart').getContext('2d');
             if (chartInstance) chartInstance.destroy(); 
+            
+            const isLight = document.body.classList.contains('light-mode');
+            const gridColor = isLight ? '#dddddd' : '#333333';
+            const textColor = isLight ? '#666666' : '#aaaaaa';
+
+            const datasets = [{
+                label: label,
+                data: dataPoints,
+                borderColor: '#00e676',
+                backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0, // 移除圓點
+                pointHoverRadius: 4, // 滑鼠移上去才顯示點
+                fill: true,
+                tension: 0.3 
+            }];
+
+            if(warnPoints && warnPoints.length > 0) {
+                datasets.push({
+                    label: '警告值',
+                    data: warnPoints,
+                    borderColor: '#ffea00',
+                    borderWidth: 1.5,
+                    borderDash: [5, 5], 
+                    pointRadius: 0,
+                    fill: false
+                });
+            }
+
+            if(limitPoints && limitPoints.length > 0) {
+                datasets.push({
+                    label: '超限值',
+                    data: limitPoints,
+                    borderColor: '#ff1744',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                    fill: false
+                });
+            }
+
             chartInstance = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    datasets: [{
-                        label: label,
-                        data: dataPoints,
-                        borderColor: '#00e676',
-                        backgroundColor: 'rgba(0, 230, 118, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 2,
-                        fill: true,
-                        tension: 0.3 
-                    }]
-                },
+                data: { datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'time', time: { unit: 'hour', tooltipFormat: 'yyyy-MM-dd HH:mm' }, grid: { color: '#333' }, ticks: { color: '#aaa' } },
-                        y: { grid: { color: '#333' }, ticks: { color: '#aaa' } }
+                        x: { type: 'time', time: { unit: 'hour', tooltipFormat: 'yyyy-MM-dd HH:mm' }, grid: { color: gridColor }, ticks: { color: textColor } },
+                        y: { 
+                            beginAtZero: true, // Y軸從 0 開始
+                            grid: { color: gridColor }, 
+                            ticks: { color: textColor } 
+                        }
                     },
                     plugins: {
-                        legend: { labels: { color: 'white' } },
-                        tooltip: { backgroundColor: '#333', titleColor: '#fff', bodyColor: '#fff' }
+                        legend: { labels: { color: textColor } },
+                        tooltip: { backgroundColor: isLight ? '#fff' : '#333', titleColor: isLight ? '#000' : '#fff', bodyColor: isLight ? '#000' : '#fff', borderColor: '#ccc', borderWidth: isLight ? 1 : 0 }
                     }
                 }
             });
+        }
+
+        function updateChartTheme(isLight) {
+            const gridColor = isLight ? '#dddddd' : '#333333';
+            const textColor = isLight ? '#666666' : '#aaaaaa';
+            
+            chartInstance.options.scales.x.grid.color = gridColor;
+            chartInstance.options.scales.x.ticks.color = textColor;
+            chartInstance.options.scales.y.grid.color = gridColor;
+            chartInstance.options.scales.y.ticks.color = textColor;
+            chartInstance.options.plugins.legend.labels.color = textColor;
+            chartInstance.options.plugins.tooltip.backgroundColor = isLight ? '#fff' : '#333';
+            chartInstance.options.plugins.tooltip.titleColor = isLight ? '#000' : '#fff';
+            chartInstance.options.plugins.tooltip.bodyColor = isLight ? '#000' : '#fff';
+            chartInstance.options.plugins.tooltip.borderWidth = isLight ? 1 : 0;
+            chartInstance.update();
         }
 
         async function fetchWeather() {
@@ -474,19 +645,27 @@
                 const aqiData = await aqiRes.json();
 
                 document.getElementById('tempVal').innerText = weatherData.current.temperature_2m;
+                updateGauge('marker-temp', weatherData.current.temperature_2m, THRESHOLDS.tempCard.max);
+
                 document.getElementById('windSpeed').innerText = weatherData.current.wind_speed_10m;
+                updateGauge('marker-wind', weatherData.current.wind_speed_10m, THRESHOLDS.windCard.max);
+
                 const windDeg = weatherData.current.wind_direction_10m;
                 document.getElementById('windDir').innerText = getWindDirection(windDeg);
+                
                 const aqi = aqiData.current.us_aqi;
                 document.getElementById('aqiVal').innerText = aqi;
+                updateGauge('marker-aqi', aqi, THRESHOLDS.aqiCard.max);
                 
                 let aqiText = "良好";
-                let aqiColor = "#00e676";
-                if(aqi > 50) { aqiText = "普通"; aqiColor = "#ffeb3b"; }
-                if(aqi > 100) { aqiText = "不健康"; aqiColor = "#ff9800"; }
+                let aqiColor = "#29b6f6"; 
+                if(aqi > 50) { aqiText = "普通"; aqiColor = "#00e676"; } 
+                if(aqi > 100) { aqiText = "對敏感族群不健康"; aqiColor = "#ffeb3b"; } 
+                if(aqi > 150) { aqiText = "不健康"; aqiColor = "#ff1744"; } 
+                
                 const aqiEl = document.getElementById('aqiStatus');
                 aqiEl.innerText = aqiText;
-                aqiEl.style.color = aqiText === "普通" ? "#ffd600" : aqiColor;
+                aqiEl.style.color = aqiColor;
 
             } catch (error) { console.error("天氣讀取失敗:", error); }
         }
@@ -498,8 +677,15 @@
         fetchRealtimeData();
         fetchHistoryData(); 
         fetchWeather();
-        setInterval(fetchRealtimeData, 60000); 
+        
+        // --- 修改這裡 ---
+        // 原本是 60000，改為 10000 (毫秒)
+        setInterval(fetchRealtimeData, 10000); 
+        
+        // 歷史資料圖表不用那麼快，維持 5 分鐘 (300000) 即可，避免拖慢效能
         setInterval(fetchHistoryData, 300000); 
+        
+        // 天氣也不用太快，維持 5 分鐘
         setInterval(fetchWeather, 300000); 
     </script>
 </body>

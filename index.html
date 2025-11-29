@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>尖山發電廠 CEMS 戰情儀表板</title>
+    <title>尖山發電廠 CEMS 監控畫面</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
@@ -21,7 +21,6 @@
             --text-muted: #888888;
             --border-color: #333333;
             
-            /* 儀表板底色 (四色色塊版) */
             --gauge-track: linear-gradient(90deg, 
                 #29b6f6 0%, #29b6f6 25%, 
                 #00e676 25%, #00e676 60%, 
@@ -47,28 +46,35 @@
             --text-running: #2e7d32; 
         }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-body); color: var(--text-main); padding: 10px 20px; margin: 0; transition: background-color 0.3s, color 0.3s; }
+        /* 頁面基本設定 */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--bg-body); color: var(--text-main); 
+            padding: 5px 15px; margin: 0; 
+            transition: background-color 0.3s, color 0.3s; 
+            /* 讓身體可以捲動，以便查看下方的圖表 */
+            overflow-y: auto; 
+        }
         
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 10px; }
+        /* 標題區塊：高度極小化 */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 5px; }
         .header-title { text-align: center; flex-grow: 1; }
         h1 { color: #4CAF50; margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
-        .sub-info { color: var(--text-sub); font-size: 0.8rem; margin-top: 2px; }
+        .sub-info { color: var(--text-sub); font-size: 0.8rem; margin-top: 0px; }
 
         .theme-toggle {
             background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);
-            padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;
-            transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 2px 8px; border-radius: 15px; cursor: pointer; font-size: 0.8rem;
+            transition: all 0.3s;
         }
-        .theme-toggle:hover { background-color: var(--border-color); }
 
-        /* --- 儀表板卡片 --- */
-        .dashboard { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        /* --- 儀表板卡片：高度極小化 --- */
+        .dashboard { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; flex-wrap: nowrap; }
         .card { 
             background-color: var(--bg-card); 
-            border-radius: 8px; padding: 10px; flex: 1; min-width: 140px; text-align: center; 
+            border-radius: 6px; padding: 5px 5px; flex: 1; min-width: 0; text-align: center; 
             border-top: 3px solid #555; position: relative; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: background-color 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .card.power { border-top-color: #ffca28; } 
@@ -78,36 +84,61 @@
         .card.temp  { border-top-color: #29b6f6; } 
         .card.wind  { border-top-color: #ab47bc; } 
         
-        .card h3 { margin: 0 0 5px 0; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; }
+        .card h3 { margin: 0 0 2px 0; font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        .data-row { display: flex; justify-content: center; align-items: baseline; gap: 4px; margin-bottom: 5px; }
-        .card .value { font-size: 1.6rem; font-weight: bold; line-height: 1; color: var(--text-main); }
-        .card .unit { font-size: 0.85rem; color: var(--text-muted); font-weight: normal; }
-        .card .sub-val { font-size: 0.75rem; color: var(--text-sub); margin-top: 5px; min-height: 1.2em;}
+        .data-row { display: flex; justify-content: center; align-items: baseline; gap: 2px; margin-bottom: 0px; }
+        .card .value { font-size: 1.3rem; font-weight: bold; line-height: 1; color: var(--text-main); }
+        .card .unit { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
+        .card .sub-val { font-size: 0.7rem; color: var(--text-sub); margin-top: 2px; min-height: 1em; line-height: 1;}
 
-        /* --- 線性儀表板 (Slider Style) --- */
-        .gauge-container { position: relative; width: 100%; height: 20px; margin-top: 5px; display: flex; align-items: center; }
-        .gauge-bar { width: 100%; height: 8px; border-radius: 2px; background: var(--gauge-track); }
-        
+        .gauge-container { position: relative; width: 100%; height: 8px; margin-top: 2px; display: flex; align-items: center; }
+        .gauge-bar { width: 100%; height: 4px; border-radius: 2px; background: var(--gauge-track); }
         .gauge-marker {
-            position: absolute; top: 2px; height: 16px; width: 4px;
-            background-color: var(--marker-color); border: 1px solid #888; border-radius: 2px;
-            transform: translateX(-50%); transition: left 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
-            left: 0%; box-shadow: 0 0 4px rgba(0,0,0,0.5); z-index: 2;
+            position: absolute; top: 0px; height: 8px; width: 3px;
+            background-color: var(--marker-color); border: 1px solid #888; border-radius: 1px;
+            transform: translateX(-50%); transition: left 0.5s; left: 0%; z-index: 2;
         }
 
         .diff-up { color: #ff1744; font-weight: bold; } 
         .diff-down { color: #00e676; font-weight: bold; } 
         .diff-flat { color: var(--text-sub); }
 
-        /* --- 表格樣式 --- */
-        .table-container { overflow-x: auto; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } 
-        table { width: 100%; border-collapse: collapse; background-color: var(--bg-card); font-size: 0.85em; }
-        th, td { border-bottom: 1px solid var(--border-color); padding: 8px 6px; text-align: center; color: var(--text-main); } 
-        th { background-color: var(--bg-table-head); color: #81d4fa; font-weight: 600; white-space: nowrap; }
+        /* --- 表格樣式 (視覺核心) --- */
+        .table-container { 
+            overflow-x: auto; 
+            margin-bottom: 20px; /* 與下方圖表的距離 */
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        } 
+        
+        table { 
+            width: 100%; border-collapse: collapse; background-color: var(--bg-card); 
+            /* 字體大小調整：比之前稍微縮小一點點以確保塞得下，但仍然很大 */
+            font-size: 1.35rem; 
+            font-weight: 500; 
+        }
+        
+        /* 表格內距極小化，讓行高縮小，擠進單一畫面 */
+        th, td { 
+            border-bottom: 1px solid var(--border-color); 
+            padding: 4px 4px; 
+            text-align: center; color: var(--text-main); 
+            line-height: 1.2; 
+        } 
+        
+        th { 
+            background-color: var(--bg-table-head); color: #81d4fa; 
+            font-weight: 600; white-space: nowrap; font-size: 0.95rem; 
+        }
+        
         body.light-mode th { color: #0277bd; }
         tbody tr:hover { background-color: var(--bg-table-row-hover); }
-        td:first-child { font-weight: bold; color: var(--text-main); background-color: var(--bg-table-head); border-right: 1px solid var(--border-color); white-space: nowrap; }
+        
+        td:first-child { 
+            font-weight: bold; color: var(--text-main); 
+            background-color: var(--bg-table-head); 
+            border-right: 1px solid var(--border-color); 
+            white-space: nowrap; font-size: 1.1rem;
+        }
         
         .avg-row { background-color: #004d40 !important; font-weight: bold; }
         .avg-row td { color: #fff !important; }
@@ -122,35 +153,38 @@
 
         .col-limit { color: #ff1744 !important; font-weight: bold; } 
 
-        /* 運轉中 (Green) */
-        .status-run td { color: var(--text-running); }
+        /* 運轉中 (Green) - 強制覆寫顏色 */
+        .status-run td { color: var(--text-running); font-weight: 700; } 
         
         /* 停機 (Gray) */
         .status-stop { color: var(--text-muted) !important; } 
-        .status-stop td { color: var(--text-muted) !important; }
+        .status-stop td { color: var(--text-muted) !important; font-weight: normal; font-size: 1.1rem; }
 
         /* --- 圖表控制區 --- */
         .chart-controls { 
-            background-color: var(--bg-card); padding: 10px; border-radius: 8px; margin-bottom: 10px; 
-            display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border-color); 
+            background-color: var(--bg-card); padding: 5px; border-radius: 6px; margin-bottom: 5px; 
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border-color); 
+            font-size: 0.9rem;
         }
         .chart-controls label { color: var(--text-main); }
         
-        /* Input & Select 樣式統一 */
         .chart-controls select, .chart-controls input[type="date"] { 
             background-color: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color); 
-            padding: 5px 10px; border-radius: 4px; font-size: 0.9rem; 
+            padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; 
         }
-        /* 針對日曆 icon 的暗黑模式修正 */
-        .chart-controls input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-        }
-        body.light-mode .chart-controls input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(0);
-        }
+        .chart-controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); width: 14px; height: 14px;}
+        body.light-mode .chart-controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0); }
 
-        .chart-container { position: relative; height: 300px; width: 100%; background-color: var(--bg-card); border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
-        #loading { text-align: center; font-size: 1em; margin-top: 20px; color: var(--text-sub);}
+        /* --- 圖表區 (高度400px，確保在下方顯示) --- */
+        .chart-container { 
+            position: relative; 
+            height: 400px; 
+            width: 100%; background-color: var(--bg-card); border-radius: 8px; 
+            margin-bottom: 20px; padding: 10px; box-sizing: border-box; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        #loading { text-align: center; font-size: 1.2em; margin-top: 20px; color: var(--text-sub);}
     </style>
 </head>
 <body>
@@ -252,7 +286,8 @@
         </select>
         <select id="chartRange">
             <option value="24h">每日 (24H)</option>
-            <option value="7d">每週 (7D)</option> <option value="30d">每月 (30D)</option>
+            <option value="7d">每週 (7D)</option>
+            <option value="30d">每月 (30D)</option>
         </select>
         <label>結束日期：</label>
         <input type="date" id="chartDate" title="選擇結束日期，留空則為今天">
@@ -356,6 +391,7 @@
                 if (baseIndex + 26 >= dataArray.length) break;
 
                 let statusCode = dataArray[baseIndex + 2]; 
+                
                 let rowClass = (statusCode === 'N') ? 'status-run' : 'status-stop';
 
                 let so2 = dataArray[baseIndex + 1];
@@ -418,10 +454,15 @@
             updateGauge('marker-urea', totalUreaKLD, THRESHOLDS.ureaCard.max); 
 
             if (runCount > 0) {
+                // --- 平均值特別邏輯：NOx > 247 變黃色 ---
+                let avgNox = totals.nox / runCount;
+                let avgNoxClass = "";
+                if (avgNox > 247) avgNoxClass = "col-warn";
+
                 let avgRow = `<tr class="avg-row">
                     <td>平均</td>
                     <td>${(totals.so2 / runCount).toFixed(2)}</td>
-                    <td>${(totals.nox / runCount).toFixed(2)}</td>
+                    <td class="${avgNoxClass}">${avgNox.toFixed(2)}</td>
                     <td>${(totals.opac / runCount).toFixed(2)}</td>
                     <td>${(totals.temp / runCount).toFixed(1)}</td>
                     <td>${(totals.o2 / runCount).toFixed(2)}</td>
@@ -436,6 +477,7 @@
             }
         }
 
+        // ... (以下 JS 與之前相同，省略以節省空間，請複製完整程式碼) ...
         async function fetchHistoryData() {
             try {
                 const response = await fetch(GAS_URL + "?type=history");
@@ -520,14 +562,11 @@
             const warnData = [];
             const limitData = [];
 
-            // 日期計算邏輯
             let endTime;
             if (dateInput) {
-                // 如果有選日期，結束時間設為該日期的 23:59:59
                 endTime = new Date(dateInput);
                 endTime.setHours(23, 59, 59, 999);
             } else {
-                // 沒選日期，結束時間設為現在
                 endTime = new Date();
             }
 
@@ -538,7 +577,6 @@
 
             globalHistoryData.forEach(row => {
                 const time = new Date(row.t);
-                // 篩選時間範圍 (包含自訂日期的範圍)
                 if (time >= startTime && time <= endTime) {
                     const parts = row.d.split(',');
                     const val = parts[baseIndex + offset];
@@ -567,8 +605,8 @@
                 borderColor: '#00e676',
                 backgroundColor: 'rgba(0, 230, 118, 0.1)',
                 borderWidth: 2,
-                pointRadius: 0, // 移除圓點
-                pointHoverRadius: 4, // 滑鼠移上去才顯示點
+                pointRadius: 0, 
+                pointHoverRadius: 4, 
                 fill: true,
                 tension: 0.3 
             }];
@@ -607,7 +645,7 @@
                     scales: {
                         x: { type: 'time', time: { unit: 'hour', tooltipFormat: 'yyyy-MM-dd HH:mm' }, grid: { color: gridColor }, ticks: { color: textColor } },
                         y: { 
-                            beginAtZero: true, // Y軸從 0 開始
+                            beginAtZero: true, 
                             grid: { color: gridColor }, 
                             ticks: { color: textColor } 
                         }
@@ -677,15 +715,8 @@
         fetchRealtimeData();
         fetchHistoryData(); 
         fetchWeather();
-        
-        // --- 修改這裡 ---
-        // 原本是 60000，改為 10000 (毫秒)
         setInterval(fetchRealtimeData, 10000); 
-        
-        // 歷史資料圖表不用那麼快，維持 5 分鐘 (300000) 即可，避免拖慢效能
         setInterval(fetchHistoryData, 300000); 
-        
-        // 天氣也不用太快，維持 5 分鐘
         setInterval(fetchWeather, 300000); 
     </script>
 </body>

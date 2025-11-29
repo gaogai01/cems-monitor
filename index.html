@@ -3,78 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>尖山發電廠 CEMS 監控畫面</title>
+    <title>尖山發電廠 CEMS 戰情儀表板</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <style>
         /* --- CSS 變數系統 --- */
         :root {
-            --bg-body: #121212;
-            --bg-card: #1e1e1e;
-            --bg-header: #2c2c2c;
-            --bg-table-head: #2c2c2c;
-            --bg-table-row: #1e1e1e;
-            --bg-table-row-hover: #2a2a2a;
-            --text-main: #ffffff;
-            --text-sub: #aaaaaa;
-            --text-muted: #888888;
-            --border-color: #333333;
+            --bg-body: #0a0b10;
+            --bg-card: rgba(30, 34, 45, 0.7);
+            --bg-card-border: 1px solid rgba(255, 255, 255, 0.1);
+            --bg-table-head: rgba(44, 48, 60, 0.9);
+            --bg-table-row: rgba(30, 34, 45, 0.4);
+            --bg-table-row-hover: rgba(255, 255, 255, 0.05);
             
-            --gauge-track: linear-gradient(90deg, 
-                #29b6f6 0%, #29b6f6 25%, 
-                #00e676 25%, #00e676 60%, 
-                #ffea00 60%, #ffea00 80%, 
-                #ff1744 80%, #ff1744 100%);
+            --text-main: #e0e6ed;
+            --text-sub: #94a3b8;
+            --text-muted: #64748b;
+            
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --glow-green: 0 0 10px rgba(0, 230, 118, 0.3);
             
             --marker-color: #ffffff; 
             --text-running: #00e676; 
         }
 
         body.light-mode {
-            --bg-body: #f0f2f5;
+            --bg-body: #f1f5f9;
             --bg-card: #ffffff;
-            --bg-header: #e4e6eb;
-            --bg-table-head: #dfe1e5;
+            --bg-card-border: 1px solid #e2e8f0;
+            --bg-table-head: #f8fafc;
             --bg-table-row: #ffffff;
-            --bg-table-row-hover: #f5f5f5;
-            --text-main: #1c1e21;
-            --text-sub: #65676b;
-            --text-muted: #888888;
-            --border-color: #cccccc;
+            --bg-table-row-hover: #f1f5f9;
+            
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --text-muted: #94a3b8;
+            
+            --border-color: #e2e8f0;
+            --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --glow-green: none;
+            
             --marker-color: #333333; 
-            --text-running: #2e7d32; 
+            --text-running: #15803d; 
         }
 
-        /* 頁面基本設定 */
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; 
             background-color: var(--bg-body); color: var(--text-main); 
-            padding: 5px 15px; margin: 0; 
+            padding: 10px 20px; margin: 0; 
             transition: background-color 0.3s, color 0.3s; 
-            /* 讓身體可以捲動，以便查看下方的圖表 */
             overflow-y: auto; 
+            background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 50%);
         }
         
-        /* 標題區塊：高度極小化 */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 5px; }
-        .header-title { text-align: center; flex-grow: 1; }
-        h1 { color: #4CAF50; margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
-        .sub-info { color: var(--text-sub); font-size: 0.8rem; margin-top: 0px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px; }
+        .header-title { text-align: center; flex-grow: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        
+        /* 修改：亮色模式移除標題陰影 */
+        body.light-mode .header-title { text-shadow: none; }
+
+        h1 { color: #4CAF50; margin: 0; font-size: 1.6rem; letter-spacing: 1.5px; font-weight: 700; }
+        .sub-info { color: var(--text-sub); font-size: 0.85rem; margin-top: 4px; font-family: monospace; }
 
         .theme-toggle {
-            background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);
-            padding: 2px 8px; border-radius: 15px; cursor: pointer; font-size: 0.8rem;
-            transition: all 0.3s;
+            background: var(--bg-card); border: var(--bg-card-border); color: var(--text-main);
+            padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+            transition: all 0.3s; backdrop-filter: blur(5px);
+        }
+        .theme-toggle:hover { background-color: rgba(255,255,255,0.1); }
+
+        .dashboard { 
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px; 
+            margin-bottom: 15px; 
         }
 
-        /* --- 儀表板卡片：高度極小化 --- */
-        .dashboard { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; flex-wrap: nowrap; }
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            body { padding: 5px 10px; }
+            h1 { font-size: 1.3rem; }
+        }
+
         .card { 
             background-color: var(--bg-card); 
-            border-radius: 6px; padding: 5px 5px; flex: 1; min-width: 0; text-align: center; 
-            border-top: 3px solid #555; position: relative; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: var(--bg-card-border);
+            border-radius: 12px; 
+            padding: 10px; 
+            text-align: center; 
+            border-top: 3px solid #555; 
+            position: relative; 
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(10px);
         }
         
         .card.power { border-top-color: #ffca28; } 
@@ -84,107 +109,110 @@
         .card.temp  { border-top-color: #29b6f6; } 
         .card.wind  { border-top-color: #ab47bc; } 
         
-        .card h3 { margin: 0 0 2px 0; font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card h3 { margin: 0 0 4px 0; font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
         
-        .data-row { display: flex; justify-content: center; align-items: baseline; gap: 2px; margin-bottom: 0px; }
-        .card .value { font-size: 1.3rem; font-weight: bold; line-height: 1; color: var(--text-main); }
-        .card .unit { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
-        .card .sub-val { font-size: 0.7rem; color: var(--text-sub); margin-top: 2px; min-height: 1em; line-height: 1;}
+        .data-row { display: flex; justify-content: center; align-items: baseline; gap: 3px; }
+        .card .value { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--text-main); text-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .card .unit { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+        .card .sub-val { font-size: 0.75rem; color: var(--text-sub); margin-top: 4px; min-height: 1.2em; line-height: 1.2;}
 
-        .gauge-container { position: relative; width: 100%; height: 8px; margin-top: 2px; display: flex; align-items: center; }
-        .gauge-bar { width: 100%; height: 4px; border-radius: 2px; background: var(--gauge-track); }
+        .gauge-container { position: relative; width: 100%; height: 6px; margin-top: 6px; display: flex; align-items: center; border-radius: 3px; background: rgba(255,255,255,0.1); }
+        .gauge-bar { width: 100%; height: 100%; border-radius: 3px; } /* 背景色改由 JS 動態生成 */
         .gauge-marker {
-            position: absolute; top: 0px; height: 8px; width: 3px;
-            background-color: var(--marker-color); border: 1px solid #888; border-radius: 1px;
-            transform: translateX(-50%); transition: left 0.5s; left: 0%; z-index: 2;
+            position: absolute; top: -3px; height: 12px; width: 4px;
+            background-color: var(--marker-color); border-radius: 2px;
+            transform: translateX(-50%); transition: left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            left: 0%; z-index: 2; box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
 
         .diff-up { color: #ff1744; font-weight: bold; } 
         .diff-down { color: #00e676; font-weight: bold; } 
         .diff-flat { color: var(--text-sub); }
 
-        /* --- 表格樣式 (視覺核心) --- */
         .table-container { 
             overflow-x: auto; 
-            margin-bottom: 20px; /* 與下方圖表的距離 */
-            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+            border-radius: 12px; 
+            box-shadow: var(--shadow-card);
+            border: var(--bg-card-border);
+            background-color: var(--bg-card);
+            backdrop-filter: blur(10px);
         } 
         
         table { 
-            width: 100%; border-collapse: collapse; background-color: var(--bg-card); 
-            /* 字體大小調整：比之前稍微縮小一點點以確保塞得下，但仍然很大 */
+            width: 100%; border-collapse: separate; border-spacing: 0;
             font-size: 1.35rem; 
             font-weight: 500; 
         }
         
-        /* 表格內距極小化，讓行高縮小，擠進單一畫面 */
         th, td { 
             border-bottom: 1px solid var(--border-color); 
-            padding: 4px 4px; 
+            padding: 8px 6px; 
             text-align: center; color: var(--text-main); 
             line-height: 1.2; 
         } 
         
         th { 
             background-color: var(--bg-table-head); color: #81d4fa; 
-            font-weight: 600; white-space: nowrap; font-size: 0.95rem; 
+            font-weight: 600; white-space: nowrap; font-size: 0.9rem; 
+            text-transform: uppercase; letter-spacing: 0.5px;
         }
         
         body.light-mode th { color: #0277bd; }
         tbody tr:hover { background-color: var(--bg-table-row-hover); }
         
-        td:first-child { 
-            font-weight: bold; color: var(--text-main); 
-            background-color: var(--bg-table-head); 
-            border-right: 1px solid var(--border-color); 
-            white-space: nowrap; font-size: 1.1rem;
+        td:first-child, th:first-child { 
+            position: sticky; left: 0; z-index: 10;
+            background-color: var(--bg-card);
+            border-right: 2px solid var(--border-color);
+            color: var(--text-main); font-weight: 700; font-size: 1.1rem;
         }
         
-        .avg-row { background-color: #004d40 !important; font-weight: bold; }
-        .avg-row td { color: #fff !important; }
-        .avg-row td:first-child { background-color: #00695c; color: #fff !important;}
+        .avg-row td { background-color: #004d40 !important; color: #fff !important; border-top: 2px solid #00695c; }
+        .avg-row td:first-child { background-color: #00695c !important; z-index: 11; }
 
-        /* --- 狀態顏色 Class --- */
-        .col-good { color: #29b6f6 !important; font-weight: bold; } 
-        body.light-mode .col-good { color: #0288d1 !important; } 
+        .col-good { color: #29b6f6 !important; font-weight: bold; text-shadow: 0 0 8px rgba(41, 182, 246, 0.4); } 
+        body.light-mode .col-good { color: #0288d1 !important; text-shadow: none; } 
 
-        .col-warn { color: #ffea00 !important; font-weight: bold; } 
-        body.light-mode .col-warn { color: #f57f17 !important; }
+        .col-warn { color: #ffea00 !important; font-weight: bold; text-shadow: 0 0 8px rgba(255, 234, 0, 0.4); } 
+        body.light-mode .col-warn { color: #f57f17 !important; text-shadow: none; }
 
-        .col-limit { color: #ff1744 !important; font-weight: bold; } 
+        .col-limit { color: #ff1744 !important; font-weight: bold; text-shadow: 0 0 10px rgba(255, 23, 68, 0.5); } 
 
-        /* 運轉中 (Green) - 強制覆寫顏色 */
-        .status-run td { color: var(--text-running); font-weight: 700; } 
-        
-        /* 停機 (Gray) */
-        .status-stop { color: var(--text-muted) !important; } 
+        .status-run td { color: var(--text-running); font-weight: 700; text-shadow: var(--glow-green); } 
+        .status-run td:first-child { color: #fff; text-shadow: none; } 
+        body.light-mode .status-run td:first-child { color: #000; }
+
         .status-stop td { color: var(--text-muted) !important; font-weight: normal; font-size: 1.1rem; }
 
-        /* --- 圖表控制區 --- */
         .chart-controls { 
-            background-color: var(--bg-card); padding: 5px; border-radius: 6px; margin-bottom: 5px; 
-            display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border: 1px solid var(--border-color); 
-            font-size: 0.9rem;
+            background-color: var(--bg-card); padding: 8px; border-radius: 8px; margin-bottom: 10px; 
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: var(--bg-card-border); 
+            font-size: 0.9rem; backdrop-filter: blur(5px);
         }
-        .chart-controls label { color: var(--text-main); }
+        .chart-controls label { color: var(--text-main); font-weight: 500; }
         
         .chart-controls select, .chart-controls input[type="date"] { 
-            background-color: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color); 
-            padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; 
+            background-color: rgba(0,0,0,0.2); color: var(--text-main); border: 1px solid var(--border-color); 
+            padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; outline: none;
         }
-        .chart-controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); width: 14px; height: 14px;}
+        .chart-controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
         body.light-mode .chart-controls input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0); }
+        body.light-mode .chart-controls select { background-color: #fff; }
 
-        /* --- 圖表區 (高度400px，確保在下方顯示) --- */
+        button { transition: transform 0.1s, background-color 0.3s; }
+        button:active { transform: scale(0.95); }
+
         .chart-container { 
-            position: relative; 
-            height: 400px; 
-            width: 100%; background-color: var(--bg-card); border-radius: 8px; 
-            margin-bottom: 20px; padding: 10px; box-sizing: border-box; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative; height: 400px; 
+            width: 100%; background-color: var(--bg-card); border-radius: 12px; 
+            margin-bottom: 20px; padding: 15px; box-sizing: border-box; 
+            box-shadow: var(--shadow-card); border: var(--bg-card-border);
+            backdrop-filter: blur(10px);
         }
         
-        #loading { text-align: center; font-size: 1.2em; margin-top: 20px; color: var(--text-sub);}
+        #loading { text-align: center; font-size: 1.2em; margin-top: 20px; color: var(--text-sub); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
     </style>
 </head>
 <body>
@@ -204,37 +232,37 @@
         <div class="card power">
             <h3>目前總發電量</h3>
             <div class="data-row"><span class="value" id="totalLoad">0</span><span class="unit">KW</span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-power"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-power"></div><div class="gauge-marker" id="marker-power"></div></div>
             <div class="sub-val" id="loadDiff">讀取中...</div>
         </div>
         <div class="card units">
             <h3>運轉機組數</h3>
             <div class="data-row"><span class="value" id="runningCountVal">0</span><span class="unit">台</span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-units"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-units"></div><div class="gauge-marker" id="marker-units"></div></div>
             <div class="sub-val" id="boilerCountVal">含鍋爐: 0</div>
         </div>
         <div class="card urea">
             <h3>總尿素用量</h3>
             <div class="data-row"><span class="value" id="totalUreaVal">0.0</span><span class="unit">kL/日</span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-urea"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-urea"></div><div class="gauge-marker" id="marker-urea"></div></div>
             <div class="sub-val">全廠合計</div>
         </div>
         <div class="card aqi">
             <h3>澎湖 AQI</h3>
             <div class="data-row"><span class="value" id="aqiVal">--</span><span class="unit"></span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-aqi"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-aqi"></div><div class="gauge-marker" id="marker-aqi"></div></div>
             <div class="sub-val" id="aqiStatus">載入中</div>
         </div>
         <div class="card temp">
             <h3>湖西鄉氣溫</h3>
             <div class="data-row"><span class="value" id="tempVal">--</span><span class="unit">°C</span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-temp"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-temp"></div><div class="gauge-marker" id="marker-temp"></div></div>
             <div class="sub-val">即時氣溫</div>
         </div>
         <div class="card wind">
             <h3>環境風速 / 風向</h3>
             <div class="data-row"><span class="value" id="windSpeed">--</span><span class="unit">m/s</span></div>
-            <div class="gauge-container"><div class="gauge-bar"></div><div class="gauge-marker" id="marker-wind"></div></div>
+            <div class="gauge-container"><div class="gauge-bar" id="bar-wind"></div><div class="gauge-marker" id="marker-wind"></div></div>
             <div class="sub-val" id="windDir">--</div>
         </div>
     </div>
@@ -290,8 +318,7 @@
             <option value="30d">每月 (30D)</option>
         </select>
         <label>結束日期：</label>
-        <input type="date" id="chartDate" title="選擇結束日期，留空則為今天">
-        
+        <input type="date" id="chartDate">
         <button onclick="updateChartFromHistory()" style="padding: 5px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">更新圖表</button>
     </div>
 
@@ -300,6 +327,13 @@
     </div>
 
     <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPLWcCJhnE_ZnnIbCgk9hNcjo6ikLDR_rzFGCiBFPamXapAj3e-fg1YiJo1THW08T4/exec';
+        const LAT = 23.575; 
+        const LON = 119.665;
+
+        // === 1. 數據設定 (THRESHOLDS) ===
+        // 這裡設定 warn/limit 是為了文字變色
+        // max 是為了決定儀表板的 100% 在哪裡
         const THRESHOLDS = {
             so2:  { warn: 120, limit: 133, max: 200 },
             nox:  { warn: 327, limit: 363, max: 400 },
@@ -307,22 +341,87 @@
             load: { warn: 8000, limit: 9000, max: 11000 },
             urea: { warn: 200, limit: 360, max: 400 },
             
-            powerCard: { warn: 100000, limit: 110000, max: 120000 },
-            unitsCard: { warn: 10, limit: 9, max: 12 },
-            ureaCard:  { warn: 40, limit: 45, max: 50 },
-            aqiCard:   { warn: 100, limit: 150, max: 200 },
-            tempCard:  { warn: 28, limit: 32, max: 36 },
-            windCard:  { warn: 19, limit: 22, max: 25 }
+            // 卡片專用最大值 (用於計算儀表板 %)
+            powerCard: { max: 120000 },
+            unitsCard: { max: 12 },
+            ureaCard:  { max: 50 },
+            aqiCard:   { max: 150 },
+            tempCard:  { max: 40 },
+            windCard:  { max: 25 }
         };
 
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwPLWcCJhnE_ZnnIbCgk9hNcjo6ikLDR_rzFGCiBFPamXapAj3e-fg1YiJo1THW08T4/exec';
-        const LAT = 23.575; 
-        const LON = 119.665;
-        
+        // === 2. 儀表板顏色區間設定 (數值版) ===
+        // 請修改這裡的 values 來決定顏色區間
+        const GAUGE_VALUES = {
+            // AQI: 0-50 藍, 50-100 綠, 100-150 黃, 150-200 紅
+            aqi:   [0,0,50, 100, 150],
+            // 機組數: 0-3 藍, 3-9 綠, 9-11 黃, 11-12 紅 (範例)
+            units: [0, 3, 9, 11, 12],
+            // 尿素: 0-10 藍, 10-30 綠, 30-45 黃, 45-50 紅
+            urea:  [0, 10, 30, 45, 50],
+            // 發電量: 0-3萬 藍, 3萬-9萬 綠, 9萬-11萬 黃, 11萬+ 紅
+            power: [0, 30000, 70000, 110000, 120000],
+            
+            // 溫度與風速 (藍色系) - 只需要頭尾
+            temp:  [7, 16,23,28,37], 
+            wind:  [0, 3,4,8,25]
+        };
+
+        // 定義對應的顏色順序 (四色版)
+        const COLORS_4 = ['#29b6f6', '#00e676', '#ffea00', '#ff1744']; // 藍, 綠, 黃, 紅
+        const COLORS_BLUE = ['#29b6f6', '#00e676', '#ffea00', '#ff1744'];
+        //const COLORS_BLUE = ['#29b6f6', '#0288d1']; // 淺藍 -> 深藍
+
         let chartInstance = null; 
         let globalHistoryData = []; 
         let currentTotalLoadVal = 0; 
         const BOILER_UNITS = [1, 2, 3, 4, 5, 7, 9, 11]; 
+
+        // --- 動態生成儀表板背景 ---
+        function generateGradientByValue(values, colors, max) {
+            let gradientStr = 'linear-gradient(90deg, ';
+            
+            // 如果只有兩色 (藍色系)
+            if (colors.length === 2) {
+                return `linear-gradient(90deg, ${colors[0]} 0%, ${colors[1]} 100%)`;
+            }
+
+            // 四色邏輯
+            for (let i = 0; i < values.length - 1; i++) {
+                let startPct = (values[i] / max) * 100;
+                let endPct = (values[i+1] / max) * 100;
+                let color = colors[i];
+                
+                gradientStr += `${color} ${startPct}%, ${color} ${endPct}%`;
+                if (i < values.length - 2) gradientStr += ', ';
+            }
+            gradientStr += ')';
+            return gradientStr;
+        }
+
+        function initGauges() {
+            // 套用 AQI
+            document.getElementById('bar-aqi').style.background = 
+                generateGradientByValue(GAUGE_VALUES.aqi, COLORS_4, THRESHOLDS.aqiCard.max);
+            
+            // 套用 Units
+            document.getElementById('bar-units').style.background = 
+                generateGradientByValue(GAUGE_VALUES.units, COLORS_4, THRESHOLDS.unitsCard.max);
+
+            // 套用 Urea
+            document.getElementById('bar-urea').style.background = 
+                generateGradientByValue(GAUGE_VALUES.urea, COLORS_4, THRESHOLDS.ureaCard.max);
+
+            // 套用 Power
+            document.getElementById('bar-power').style.background = 
+                generateGradientByValue(GAUGE_VALUES.power, COLORS_4, THRESHOLDS.powerCard.max);
+
+            // 套用 Temp & Wind (藍色系)
+            document.getElementById('bar-temp').style.background = 
+                generateGradientByValue(GAUGE_VALUES.temp, COLORS_BLUE, THRESHOLDS.tempCard.max);
+            document.getElementById('bar-wind').style.background = 
+                generateGradientByValue(GAUGE_VALUES.wind, COLORS_BLUE, THRESHOLDS.windCard.max);
+        }
 
         function toggleTheme() {
             const body = document.body;
@@ -391,7 +490,6 @@
                 if (baseIndex + 26 >= dataArray.length) break;
 
                 let statusCode = dataArray[baseIndex + 2]; 
-                
                 let rowClass = (statusCode === 'N') ? 'status-run' : 'status-stop';
 
                 let so2 = dataArray[baseIndex + 1];
@@ -454,7 +552,6 @@
             updateGauge('marker-urea', totalUreaKLD, THRESHOLDS.ureaCard.max); 
 
             if (runCount > 0) {
-                // --- 平均值特別邏輯：NOx > 247 變黃色 ---
                 let avgNox = totals.nox / runCount;
                 let avgNoxClass = "";
                 if (avgNox > 247) avgNoxClass = "col-warn";
@@ -477,7 +574,6 @@
             }
         }
 
-        // ... (以下 JS 與之前相同，省略以節省空間，請複製完整程式碼) ...
         async function fetchHistoryData() {
             try {
                 const response = await fetch(GAS_URL + "?type=history");
@@ -554,13 +650,9 @@
             else if (pollutant === 'load') { offset = 25; labelName = `Load (kw)`; }
             else if (pollutant === 'urea') { offset = 26; labelName = `Urea (L/hr)`; }
 
-            const threshold = THRESHOLDS[pollutant];
-            const warnVal = threshold ? threshold.warn : null;
-            const limitVal = threshold ? threshold.limit : null;
-
             const chartData = [];
-            const warnData = [];
-            const limitData = [];
+            let minVal = Infinity, maxVal = -Infinity, sumVal = 0, count = 0;
+            let minPoint = null, maxPoint = null;
 
             let endTime;
             if (dateInput) {
@@ -583,20 +675,26 @@
                     if (val !== undefined) {
                         const numVal = parseFloat(val) || 0;
                         chartData.push({ x: time, y: numVal });
-                        if(warnVal) warnData.push({ x: time, y: warnVal });
-                        if(limitVal) limitData.push({ x: time, y: limitVal });
+                        
+                        // 計算統計
+                        if (numVal < minVal) { minVal = numVal; minPoint = {x: time, y: numVal}; }
+                        if (numVal > maxVal) { maxVal = numVal; maxPoint = {x: time, y: numVal}; }
+                        sumVal += numVal;
+                        count++;
                     }
                 }
             });
-            drawChart(labelName, chartData, warnData, limitData);
+
+            const avgVal = count > 0 ? (sumVal / count) : 0;
+            drawChart(labelName, chartData, minVal, maxVal, avgVal, minPoint, maxPoint);
         }
 
-        function drawChart(label, dataPoints, warnPoints, limitPoints) {
+        function drawChart(label, dataPoints, min, max, avg, minPoint, maxPoint) {
             const ctx = document.getElementById('historyChart').getContext('2d');
             if (chartInstance) chartInstance.destroy(); 
             
             const isLight = document.body.classList.contains('light-mode');
-            const gridColor = isLight ? '#dddddd' : '#333333';
+            const gridColor = isLight ? '#dddddd' : 'rgba(255,255,255,0.1)';
             const textColor = isLight ? '#666666' : '#aaaaaa';
 
             const datasets = [{
@@ -611,28 +709,60 @@
                 tension: 0.3 
             }];
 
-            if(warnPoints && warnPoints.length > 0) {
+            // 輔助線與點 (如果有數據)
+            if (dataPoints.length > 0) {
+                // 1. 平均線 (白色虛線)
                 datasets.push({
-                    label: '警告值',
-                    data: warnPoints,
-                    borderColor: '#ffea00',
-                    borderWidth: 1.5,
-                    borderDash: [5, 5], 
+                    label: `平均 (${avg.toFixed(1)})`,
+                    data: [{x: dataPoints[0].x, y: avg}, {x: dataPoints[dataPoints.length-1].x, y: avg}],
+                    borderColor: isLight ? '#666' : '#fff',
+                    borderWidth: 1,
+                    borderDash: [5, 5],
                     pointRadius: 0,
                     fill: false
                 });
-            }
 
-            if(limitPoints && limitPoints.length > 0) {
+                // 2. 最小值線 (藍色虛線)
                 datasets.push({
-                    label: '超限值',
-                    data: limitPoints,
-                    borderColor: '#ff1744',
-                    borderWidth: 1.5,
-                    borderDash: [3, 3],
+                    label: `最小 (${min.toFixed(1)})`,
+                    data: [{x: dataPoints[0].x, y: min}, {x: dataPoints[dataPoints.length-1].x, y: min}],
+                    borderColor: '#29b6f6',
+                    borderWidth: 1,
+                    borderDash: [2, 2],
                     pointRadius: 0,
                     fill: false
                 });
+
+                // 3. 最大值線 (紅色虛線)
+                datasets.push({
+                    label: `最大 (${max.toFixed(1)})`,
+                    data: [{x: dataPoints[0].x, y: max}, {x: dataPoints[dataPoints.length-1].x, y: max}],
+                    borderColor: '#ff1744',
+                    borderWidth: 1,
+                    borderDash: [2, 2],
+                    pointRadius: 0,
+                    fill: false
+                });
+
+                // 4. 極值點 (圓點) - 只畫 Min 和 Max
+                if (minPoint) {
+                    datasets.push({
+                        label: 'Min Point',
+                        type: 'scatter',
+                        data: [minPoint],
+                        backgroundColor: '#29b6f6',
+                        pointRadius: 5
+                    });
+                }
+                if (maxPoint) {
+                    datasets.push({
+                        label: 'Max Point',
+                        type: 'scatter',
+                        data: [maxPoint],
+                        backgroundColor: '#ff1744',
+                        pointRadius: 5
+                    });
+                }
             }
 
             chartInstance = new Chart(ctx, {
@@ -659,7 +789,7 @@
         }
 
         function updateChartTheme(isLight) {
-            const gridColor = isLight ? '#dddddd' : '#333333';
+            const gridColor = isLight ? '#dddddd' : 'rgba(255,255,255,0.1)';
             const textColor = isLight ? '#666666' : '#aaaaaa';
             
             chartInstance.options.scales.x.grid.color = gridColor;
@@ -711,6 +841,9 @@
             const directions = ['北風', '東北', '東風', '東南', '南風', '西南', '西風', '西北'];
             return directions[Math.round(degree / 45) % 8];
         }
+
+        // 初始化儀表板漸層
+        initGauges();
 
         fetchRealtimeData();
         fetchHistoryData(); 

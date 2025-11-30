@@ -60,8 +60,6 @@
         
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px; }
         .header-title { text-align: center; flex-grow: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        
-        /* 修改：亮色模式移除標題陰影 */
         body.light-mode .header-title { text-shadow: none; }
 
         h1 { color: #4CAF50; margin: 0; font-size: 1.6rem; letter-spacing: 1.5px; font-weight: 700; }
@@ -117,7 +115,7 @@
         .card .sub-val { font-size: 0.75rem; color: var(--text-sub); margin-top: 4px; min-height: 1.2em; line-height: 1.2;}
 
         .gauge-container { position: relative; width: 100%; height: 6px; margin-top: 6px; display: flex; align-items: center; border-radius: 3px; background: rgba(255,255,255,0.1); }
-        .gauge-bar { width: 100%; height: 100%; border-radius: 3px; } /* 背景色改由 JS 動態生成 */
+        .gauge-bar { width: 100%; height: 100%; border-radius: 3px; } 
         .gauge-marker {
             position: absolute; top: -3px; height: 12px; width: 4px;
             background-color: var(--marker-color); border-radius: 2px;
@@ -332,8 +330,6 @@
         const LON = 119.665;
 
         // === 1. 數據設定 (THRESHOLDS) ===
-        // 這裡設定 warn/limit 是為了文字變色
-        // max 是為了決定儀表板的 100% 在哪裡
         const THRESHOLDS = {
             so2:  { warn: 120, limit: 133, max: 200 },
             nox:  { warn: 327, limit: 363, max: 400 },
@@ -351,26 +347,17 @@
         };
 
         // === 2. 儀表板顏色區間設定 (數值版) ===
-        // 請修改這裡的 values 來決定顏色區間
         const GAUGE_VALUES = {
-            // AQI: 0-50 藍, 50-100 綠, 100-150 黃, 150-200 紅
-            aqi:   [0,0,50, 100, 150],
-            // 機組數: 0-3 藍, 3-9 綠, 9-11 黃, 11-12 紅 (範例)
+            aqi:   [0, 0, 50, 100, 150], 
             units: [0, 3, 9, 11, 12],
-            // 尿素: 0-10 藍, 10-30 綠, 30-45 黃, 45-50 紅
             urea:  [0, 10, 30, 45, 50],
-            // 發電量: 0-3萬 藍, 3萬-9萬 綠, 9萬-11萬 黃, 11萬+ 紅
             power: [0, 30000, 70000, 110000, 120000],
-            
-            // 溫度與風速 (藍色系) - 只需要頭尾
-            temp:  [7, 16,23,28,37], 
-            wind:  [0, 3,4,8,25]
+            temp:  [7, 16, 23, 28, 37], 
+            wind:  [0, 3, 4, 8, 25]
         };
 
         // 定義對應的顏色順序 (四色版)
         const COLORS_4 = ['#29b6f6', '#00e676', '#ffea00', '#ff1744']; // 藍, 綠, 黃, 紅
-        const COLORS_BLUE = ['#29b6f6', '#00e676', '#ffea00', '#ff1744'];
-        //const COLORS_BLUE = ['#29b6f6', '#0288d1']; // 淺藍 -> 深藍
 
         let chartInstance = null; 
         let globalHistoryData = []; 
@@ -380,18 +367,13 @@
         // --- 動態生成儀表板背景 ---
         function generateGradientByValue(values, colors, max) {
             let gradientStr = 'linear-gradient(90deg, ';
-            
-            // 如果只有兩色 (藍色系)
-            if (colors.length === 2) {
-                return `linear-gradient(90deg, ${colors[0]} 0%, ${colors[1]} 100%)`;
-            }
-
-            // 四色邏輯
+            // 4 segments logic (based on 5 values)
             for (let i = 0; i < values.length - 1; i++) {
                 let startPct = (values[i] / max) * 100;
                 let endPct = (values[i+1] / max) * 100;
                 let color = colors[i];
-                
+                if(i >= colors.length) color = colors[colors.length-1]; // 防止溢出
+
                 gradientStr += `${color} ${startPct}%, ${color} ${endPct}%`;
                 if (i < values.length - 2) gradientStr += ', ';
             }
@@ -400,27 +382,24 @@
         }
 
         function initGauges() {
-            // 套用 AQI
+            // 全部統一使用四色邏輯
             document.getElementById('bar-aqi').style.background = 
                 generateGradientByValue(GAUGE_VALUES.aqi, COLORS_4, THRESHOLDS.aqiCard.max);
             
-            // 套用 Units
             document.getElementById('bar-units').style.background = 
                 generateGradientByValue(GAUGE_VALUES.units, COLORS_4, THRESHOLDS.unitsCard.max);
 
-            // 套用 Urea
             document.getElementById('bar-urea').style.background = 
                 generateGradientByValue(GAUGE_VALUES.urea, COLORS_4, THRESHOLDS.ureaCard.max);
 
-            // 套用 Power
             document.getElementById('bar-power').style.background = 
                 generateGradientByValue(GAUGE_VALUES.power, COLORS_4, THRESHOLDS.powerCard.max);
 
-            // 套用 Temp & Wind (藍色系)
             document.getElementById('bar-temp').style.background = 
-                generateGradientByValue(GAUGE_VALUES.temp, COLORS_BLUE, THRESHOLDS.tempCard.max);
+                generateGradientByValue(GAUGE_VALUES.temp, COLORS_4, THRESHOLDS.tempCard.max);
+                
             document.getElementById('bar-wind').style.background = 
-                generateGradientByValue(GAUGE_VALUES.wind, COLORS_BLUE, THRESHOLDS.windCard.max);
+                generateGradientByValue(GAUGE_VALUES.wind, COLORS_4, THRESHOLDS.windCard.max);
         }
 
         function toggleTheme() {
@@ -525,14 +504,30 @@
                     totalUreaKLD += singleUreaKLD;
                 }
 
+                // 數據簡化: SO2, NOx, Temp 取整數; OPAC, O2, Vel 取小數1位
+                let showSO2 = statusCode === 'N' ? Math.round(parseFloat(so2)||0) : parseFloat(so2).toFixed(2);
+                let showNOx = statusCode === 'N' ? Math.round(parseFloat(nox)||0) : parseFloat(nox).toFixed(2);
+                let showTemp = statusCode === 'N' ? Math.round(parseFloat(temp)||0) : parseFloat(temp).toFixed(1);
+                
+                let showOpac = (parseFloat(opac)||0).toFixed(1);
+                let showO2 = (parseFloat(o2)||0).toFixed(1);
+                let showVel = (parseFloat(vel)||0).toFixed(1);
+
+                // 停機時保留原本小數顯示，運轉中才簡化
+                if(statusCode !== 'N') {
+                    showSO2 = parseFloat(so2).toFixed(2);
+                    showNOx = parseFloat(nox).toFixed(2);
+                    showTemp = parseFloat(temp).toFixed(1);
+                }
+
                 let row = `<tr class="${rowClass}">
                     <td>#${machineId}</td>
-                    <td class="${c_so2}">${parseFloat(so2).toFixed(2)}</td>
-                    <td class="${c_nox}">${parseFloat(nox).toFixed(2)}</td>
-                    <td class="${c_opac}">${parseFloat(opac).toFixed(2)}</td>
-                    <td>${parseFloat(temp).toFixed(1)}</td>
-                    <td>${parseFloat(o2).toFixed(2)}</td>
-                    <td>${parseFloat(vel).toFixed(2)}</td>
+                    <td class="${c_so2}">${showSO2}</td>
+                    <td class="${c_nox}">${showNOx}</td>
+                    <td class="${c_opac}">${showOpac}</td>
+                    <td>${showTemp}</td>
+                    <td>${showO2}</td>
+                    <td>${showVel}</td>
                     <td>${Math.round(flow)}</td>
                     <td class="${c_load}">${Math.round(load)}</td>
                     <td class="${c_urea}">${Math.round(urea)}</td>
@@ -558,12 +553,12 @@
 
                 let avgRow = `<tr class="avg-row">
                     <td>平均</td>
-                    <td>${(totals.so2 / runCount).toFixed(2)}</td>
-                    <td class="${avgNoxClass}">${avgNox.toFixed(2)}</td>
-                    <td>${(totals.opac / runCount).toFixed(2)}</td>
-                    <td>${(totals.temp / runCount).toFixed(1)}</td>
-                    <td>${(totals.o2 / runCount).toFixed(2)}</td>
-                    <td>${(totals.vel / runCount).toFixed(2)}</td>
+                    <td>${Math.round(totals.so2 / runCount)}</td>
+                    <td class="${avgNoxClass}">${Math.round(avgNox)}</td>
+                    <td>${(totals.opac / runCount).toFixed(1)}</td>
+                    <td>${Math.round(totals.temp / runCount)}</td>
+                    <td>${(totals.o2 / runCount).toFixed(1)}</td>
+                    <td>${(totals.vel / runCount).toFixed(1)}</td>
                     <td>${Math.round(totals.flow / runCount)}</td>
                     <td>${Math.round(totals.load / runCount)}</td>
                     <td>${Math.round(totals.urea / runCount)}</td>
@@ -676,7 +671,6 @@
                         const numVal = parseFloat(val) || 0;
                         chartData.push({ x: time, y: numVal });
                         
-                        // 計算統計
                         if (numVal < minVal) { minVal = numVal; minPoint = {x: time, y: numVal}; }
                         if (numVal > maxVal) { maxVal = numVal; maxPoint = {x: time, y: numVal}; }
                         sumVal += numVal;
@@ -709,9 +703,7 @@
                 tension: 0.3 
             }];
 
-            // 輔助線與點 (如果有數據)
             if (dataPoints.length > 0) {
-                // 1. 平均線 (白色虛線)
                 datasets.push({
                     label: `平均 (${avg.toFixed(1)})`,
                     data: [{x: dataPoints[0].x, y: avg}, {x: dataPoints[dataPoints.length-1].x, y: avg}],
@@ -722,7 +714,6 @@
                     fill: false
                 });
 
-                // 2. 最小值線 (藍色虛線)
                 datasets.push({
                     label: `最小 (${min.toFixed(1)})`,
                     data: [{x: dataPoints[0].x, y: min}, {x: dataPoints[dataPoints.length-1].x, y: min}],
@@ -733,7 +724,6 @@
                     fill: false
                 });
 
-                // 3. 最大值線 (紅色虛線)
                 datasets.push({
                     label: `最大 (${max.toFixed(1)})`,
                     data: [{x: dataPoints[0].x, y: max}, {x: dataPoints[dataPoints.length-1].x, y: max}],
@@ -744,7 +734,6 @@
                     fill: false
                 });
 
-                // 4. 極值點 (圓點) - 只畫 Min 和 Max
                 if (minPoint) {
                     datasets.push({
                         label: 'Min Point',

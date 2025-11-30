@@ -58,20 +58,76 @@
             background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 50%);
         }
         
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px; }
-        .header-title { text-align: center; flex-grow: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        /* --- 標題區塊 (新佈局) --- */
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding: 0 5px; 
+        }
+        
+        /* 左側佔位，讓標題置中 */
+        .header-spacer { flex: 1; }
+        
+        /* 中間標題 */
+        .header-title { 
+            text-align: center; 
+            flex: 2; /* 佔據較多空間 */
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+        }
         body.light-mode .header-title { text-shadow: none; }
+        h1 { color: #4CAF50; margin: 0; font-size: 1.6rem; letter-spacing: 1.5px; font-weight: 700; white-space: nowrap; }
 
-        h1 { color: #4CAF50; margin: 0; font-size: 1.6rem; letter-spacing: 1.5px; font-weight: 700; }
-        .sub-info { color: var(--text-sub); font-size: 0.85rem; margin-top: 4px; font-family: monospace; }
+        /* 右側控制區 (按鈕 + 時間) */
+        .header-controls { 
+            flex: 1; 
+            display: flex; 
+            justify-content: flex-end; 
+            align-items: center; 
+            gap: 10px; 
+        }
 
+        /* 按鈕樣式 */
         .theme-toggle {
             background: var(--bg-card); border: var(--bg-card-border); color: var(--text-main);
-            padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+            padding: 5px 12px; border-radius: 20px; cursor: pointer; font-size: 0.85rem;
             transition: all 0.3s; backdrop-filter: blur(5px);
+            white-space: nowrap;
         }
         .theme-toggle:hover { background-color: rgba(255,255,255,0.1); }
 
+        /* --- 新增：更新時間藥丸樣式 --- */
+        .update-pill {
+            background-color: #1b5e20; /* 深綠色背景 */
+            color: #e8f5e9; /* 淺白綠字體 */
+            padding: 5px 15px;
+            border-radius: 20px; /* 藥丸形狀 */
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        /* 亮色模式下的藥丸 */
+        body.light-mode .update-pill {
+            background-color: #2e7d32; /* 亮模式用稍微亮一點的綠 */
+            color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        /* --- 響應式調整 --- */
+        @media (max-width: 900px) {
+            h1 { font-size: 1.2rem; }
+            .header-controls { gap: 5px; }
+            .theme-toggle, .update-pill { padding: 4px 8px; font-size: 0.75rem; }
+        }
+
+        /* --- 儀表板卡片 --- */
         .dashboard { 
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -85,7 +141,6 @@
                 gap: 8px;
             }
             body { padding: 5px 10px; }
-            h1 { font-size: 1.3rem; }
         }
 
         .card { 
@@ -216,14 +271,18 @@
 <body>
 
     <header>
-        <div style="width: 80px;"></div>
+        <div class="header-spacer"></div>
+        
         <div class="header-title">
             <h1>尖山發電廠 CEMS 監控畫面</h1>
-            <div class="sub-info" id="updateTime">連線中...</div>
         </div>
-        <button class="theme-toggle" onclick="toggleTheme()">
-            <span id="themeIcon">☀️ 亮色</span>
-        </button>
+        
+        <div class="header-controls">
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="themeIcon">☀️ 亮色</span>
+            </button>
+            <div id="updateTime" class="update-pill">連線中...</div>
+        </div>
     </header>
 
     <div class="dashboard">
@@ -356,7 +415,6 @@
             wind:  [0, 3, 4, 8, 25]
         };
 
-        // 定義對應的顏色順序 (四色版)
         const COLORS_4 = ['#29b6f6', '#00e676', '#ffea00', '#ff1744']; // 藍, 綠, 黃, 紅
 
         let chartInstance = null; 
@@ -367,12 +425,11 @@
         // --- 動態生成儀表板背景 ---
         function generateGradientByValue(values, colors, max) {
             let gradientStr = 'linear-gradient(90deg, ';
-            // 4 segments logic (based on 5 values)
             for (let i = 0; i < values.length - 1; i++) {
                 let startPct = (values[i] / max) * 100;
                 let endPct = (values[i+1] / max) * 100;
                 let color = colors[i];
-                if(i >= colors.length) color = colors[colors.length-1]; // 防止溢出
+                if(i >= colors.length) color = colors[colors.length-1];
 
                 gradientStr += `${color} ${startPct}%, ${color} ${endPct}%`;
                 if (i < values.length - 2) gradientStr += ', ';
@@ -382,24 +439,12 @@
         }
 
         function initGauges() {
-            // 全部統一使用四色邏輯
-            document.getElementById('bar-aqi').style.background = 
-                generateGradientByValue(GAUGE_VALUES.aqi, COLORS_4, THRESHOLDS.aqiCard.max);
-            
-            document.getElementById('bar-units').style.background = 
-                generateGradientByValue(GAUGE_VALUES.units, COLORS_4, THRESHOLDS.unitsCard.max);
-
-            document.getElementById('bar-urea').style.background = 
-                generateGradientByValue(GAUGE_VALUES.urea, COLORS_4, THRESHOLDS.ureaCard.max);
-
-            document.getElementById('bar-power').style.background = 
-                generateGradientByValue(GAUGE_VALUES.power, COLORS_4, THRESHOLDS.powerCard.max);
-
-            document.getElementById('bar-temp').style.background = 
-                generateGradientByValue(GAUGE_VALUES.temp, COLORS_4, THRESHOLDS.tempCard.max);
-                
-            document.getElementById('bar-wind').style.background = 
-                generateGradientByValue(GAUGE_VALUES.wind, COLORS_4, THRESHOLDS.windCard.max);
+            document.getElementById('bar-aqi').style.background = generateGradientByValue(GAUGE_VALUES.aqi, COLORS_4, THRESHOLDS.aqiCard.max);
+            document.getElementById('bar-units').style.background = generateGradientByValue(GAUGE_VALUES.units, COLORS_4, THRESHOLDS.unitsCard.max);
+            document.getElementById('bar-urea').style.background = generateGradientByValue(GAUGE_VALUES.urea, COLORS_4, THRESHOLDS.ureaCard.max);
+            document.getElementById('bar-power').style.background = generateGradientByValue(GAUGE_VALUES.power, COLORS_4, THRESHOLDS.powerCard.max);
+            document.getElementById('bar-temp').style.background = generateGradientByValue(GAUGE_VALUES.temp, COLORS_4, THRESHOLDS.tempCard.max);
+            document.getElementById('bar-wind').style.background = generateGradientByValue(GAUGE_VALUES.wind, COLORS_4, THRESHOLDS.windCard.max);
         }
 
         function toggleTheme() {
@@ -449,6 +494,8 @@
         function renderTable(timestamp, rawString) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('dataTable').style.display = 'table';
+            
+            // 更新右上方時間
             document.getElementById('updateTime').innerText = "更新: " + new Date(timestamp).toLocaleTimeString();
 
             const dataArray = rawString.split(',');
@@ -504,7 +551,6 @@
                     totalUreaKLD += singleUreaKLD;
                 }
 
-                // 數據簡化: SO2, NOx, Temp 取整數; OPAC, O2, Vel 取小數1位
                 let showSO2 = statusCode === 'N' ? Math.round(parseFloat(so2)||0) : parseFloat(so2).toFixed(2);
                 let showNOx = statusCode === 'N' ? Math.round(parseFloat(nox)||0) : parseFloat(nox).toFixed(2);
                 let showTemp = statusCode === 'N' ? Math.round(parseFloat(temp)||0) : parseFloat(temp).toFixed(1);
@@ -513,7 +559,6 @@
                 let showO2 = (parseFloat(o2)||0).toFixed(1);
                 let showVel = (parseFloat(vel)||0).toFixed(1);
 
-                // 停機時保留原本小數顯示，運轉中才簡化
                 if(statusCode !== 'N') {
                     showSO2 = parseFloat(so2).toFixed(2);
                     showNOx = parseFloat(nox).toFixed(2);
@@ -644,6 +689,10 @@
             else if (pollutant === 'opac') { offset = 10; labelName = `OPAC (%)`; }
             else if (pollutant === 'load') { offset = 25; labelName = `Load (kw)`; }
             else if (pollutant === 'urea') { offset = 26; labelName = `Urea (L/hr)`; }
+
+            const threshold = THRESHOLDS[pollutant];
+            const warnVal = threshold ? threshold.warn : null;
+            const limitVal = threshold ? threshold.limit : null;
 
             const chartData = [];
             let minVal = Infinity, maxVal = -Infinity, sumVal = 0, count = 0;

@@ -266,9 +266,40 @@
         
         #loading { text-align: center; font-size: 1.2em; margin-top: 20px; color: var(--text-sub); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    
+        .service-notice {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 10px 14px; margin: 0 0 12px;
+            border: 1px solid rgba(245, 158, 11, 0.55); border-left: 5px solid #f59e0b;
+            border-radius: 10px; background: rgba(255, 248, 225, 0.97); color: #3f2d0a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); backdrop-filter: blur(8px);
+            line-height: 1.45;
+        }
+        .service-notice-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+        .service-notice strong { color: #92400e; white-space: nowrap; }
+        .service-notice-link {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 8px 12px; border-radius: 7px; background: #166534; color: #fff;
+            font-weight: 700; text-decoration: none; white-space: nowrap;
+        }
+        .service-notice-link:hover { background: #14532d; }
+        @media (max-width: 640px) {
+            .service-notice { align-items: stretch; flex-direction: column; gap: 8px; padding: 10px; }
+            .service-notice-link { width: 100%; box-sizing: border-box; }
+        }
     </style>
 </head>
 <body>
+    <div class="service-notice" role="note" aria-label="服務期限提醒">
+        <div class="service-notice-copy">
+            <strong>舊版服務期限提醒</strong>
+            <span>本網頁服務至 <b>115/12/31</b>，並自 <b>116/1/1</b> 起停用。如需繼續使用，請前往新版平台並申請帳號。</span>
+        </div>
+        <a class="service-notice-link" href="https://gaogai01.github.io/cems/cems.html">前往新版平台／申請帳號 ↗</a>
+    </div>
+
+    
 
     <header>
         <div class="header-spacer"></div>
